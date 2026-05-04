@@ -125,22 +125,9 @@
             box-shadow: 0 0 15px 5px rgba(99, 102, 241, 0.4);
         }
 
-/* --- GIAO DIỆN BÌNH THƯỜNG --- */
-#video-wrapper {
-    position: relative;
-}
-
 /* Đảm bảo video luôn nằm dưới cùng ở mọi chế độ */
 #remote-video {
     z-index: 1 !important;
-}
-
-/* PC: ngang */
-#video-wrapper.pc-call {
-    aspect-ratio: 16 / 9 !important;
-}
-#video-wrapper.pc-call #remote-video {
-    object-fit: contain !important;
 }
 
 /* Bảng chờ: Nằm trên video nhưng dưới các nút bấm */
@@ -295,15 +282,6 @@ video {
     background: #000;
 }
 
-@media (max-width: 768px) {
-    /* Ép khung video thành dọc trên mobile (ưu tiên cao nhất) */
-    #video-wrapper.mobile-call {
-        aspect-ratio: 9 / 16 !important;
-    }
-    #video-wrapper.mobile-call #remote-video {
-        object-fit: cover !important;
-    }
-
     /* Các style khác giữ nguyên (vị trí nút, local video...) */
     #fullscreen-btn {
         top: 15px !important;
@@ -332,19 +310,34 @@ video {
         max-width: 120px;
         font-size: 8px !important;
     }
+
+    /* Reset triệt để mọi aspect-ratio mặc định */
+#video-wrapper {
+    aspect-ratio: auto !important;
 }
 
 /* Mặc định PC: ngang 16:9 */
-#local-video-container {
-    aspect-ratio: 16 / 9;
+#video-wrapper.pc-call {
+    aspect-ratio: 16 / 9 !important;
 }
-/* Mobile: dọc 9:16 */
+#video-wrapper.pc-call #remote-video {
+    object-fit: contain !important;
+}
+
+/* Mobile: dọc 9:16 – dùng media query */
 @media (max-width: 768px) {
-    #local-video-container.local-mobile {
-        aspect-ratio: 9 / 16;
+    #video-wrapper.mobile-call {
+        aspect-ratio: 9 / 16 !important;
+    }
+    #video-wrapper.mobile-call #remote-video {
+        object-fit: cover !important;
     }
 }
 
+/* Fallback nếu không có class */
+#video-wrapper:not(.pc-call):not(.mobile-call) {
+    aspect-ratio: 16 / 9;
+}
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -507,7 +500,7 @@ video {
     <!-- 2. GIAO DIỆN ĐANG GỌI -->
     <div id="peer-call-container" class="hidden animate-in slide-in-from-bottom-10 duration-700">
         <div class="max-w-5xl mx-auto glass p-4 sm:p-8 rounded-[40px] border border-white/10 relative">
-            <div id="video-wrapper" class="w-full aspect-video bg-slate-950 rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
+            <div id="video-wrapper" class="w-full bg-slate-950 rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
                 
                 <video id="remote-video" autoplay playsinline webkit-playsinline class="w-full h-full object-cover z-0"></video>
 
@@ -1040,13 +1033,11 @@ let currentCursor = 0;
         
         // 👉 Thêm class tỉ lệ video (dọc cho mobile, ngang cho PC)
         const wrapper = document.getElementById('video-wrapper');
-        wrapper.classList.remove('aspect-video'); // bỏ class tailwind mặc định
+        wrapper.classList.remove('aspect-video', 'pc-call', 'mobile-call');  // xóa tất cả class cũ
         if (getDeviceType() === 'mobile') {
             wrapper.classList.add('mobile-call');
-            wrapper.classList.remove('pc-call');
         } else {
             wrapper.classList.add('pc-call');
-            wrapper.classList.remove('mobile-call');
         }
         
         document.getElementById('local-video').srcObject = localStream;
