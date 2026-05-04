@@ -1068,9 +1068,11 @@ let currentCursor = 0;
         peer = new Peer({
             config: {
                 iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+                    // Google STUN Servers
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "stun:stun1.l.google.com:19302" },
+                    // Twilio TURN Server (không cần auth, dùng cho relay)
+                    { urls: "turn:global.turn.twilio.com:3478?transport=udp" }
                 ]
             }
         });
