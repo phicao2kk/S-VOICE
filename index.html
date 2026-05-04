@@ -1065,7 +1065,15 @@ let currentCursor = 0;
         
         if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
 
-        peer = new Peer();
+        peer = new Peer({
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+                ]
+            }
+        });
         peer.on('open', (id) => {
             myPeerId = id;
             if (type === 'random') findRandomMatch();
@@ -1083,56 +1091,67 @@ let currentCursor = 0;
             S_Notify.alert("Lỗi kết nối: " + (err.type || "Không xác định"), "error");
             leaveMatch();
         });
+        peer.on('disconnected', () => {
+            console.warn("Peer disconnected");
+            S_Notify.alert("Mất kết nối với server, đang thử kết nối lại...", "error");
+            peer.reconnect();
+        });
     } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
 }
 
 async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
-    if (!myPeerId) { setTimeout(findRandomMatch, 1000); return; }
+    if (!myPeerId) { setTimeout(() => findRandomMatch(), 500); return; }
 
-    // Xóa những phòng "ma" đã quá 30 giây mà không có ai vào
+    // Xóa phòng cũ quá 10 giây
     const now = Date.now();
     const allRooms = await roomsRef.once('value');
+    const updates = [];
     allRooms.forEach(snap => {
-        if (snap.val().createdAt && (now - snap.val().createdAt > 15000) && snap.val().status === 'waiting') {
-            snap.ref.remove();
+        const room = snap.val();
+        if (room.createdAt && (now - room.createdAt > 10000) && room.status === 'waiting') {
+            updates.push(snap.ref.remove());
         }
     });
+    await Promise.all(updates);
 
+    // Tìm phòng đang chờ (không phải của mình)
     const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
     const rooms = snapshot.val();
 
     if (rooms) {
+        // Có phòng chờ -> vào phòng
         currentRoomId = Object.keys(rooms)[0];
-        const targetHostId = rooms[currentRoomId].hostId;
-
-        if (targetHostId === myPeerId) {
+        const room = rooms[currentRoomId];
+        if (room.hostId === myPeerId) {
+            // Phòng của chính mình (lỗi) -> xóa và thử lại
             await roomsRef.child(currentRoomId).remove();
-            findRandomMatch(); return;
+            setTimeout(() => findRandomMatch(), 500);
+            return;
         }
-
         isHost = false;
-        await roomsRef.child(currentRoomId).update({ 
-            status: 'occupied', 
+        await roomsRef.child(currentRoomId).update({
+            status: 'occupied',
             guestId: myPeerId,
-            guestDevice: getDeviceType() 
+            guestDevice: getDeviceType()
         });
-        // 👇 Thêm dòng này để khi guest thoát đột ngột, phòng trở về waiting
-        roomsRef.child(currentRoomId).onDisconnect().update({ 
-            status: 'waiting', 
+        roomsRef.child(currentRoomId).onDisconnect().update({
+            status: 'waiting',
             guestId: null,
-            guestDevice: null 
+            guestDevice: null
         });
-        
-        // Thực hiện gọi
-        remoteCall = peer.call(targetHostId, localStream);
+        // Gọi peer
+        remoteCall = peer.call(room.hostId, localStream);
         setupCallListeners(remoteCall);
     } else {
+        // Không có phòng -> tạo phòng mới
         isHost = true;
         currentRoomId = myPeerId;
-        await roomsRef.child(currentRoomId).set({ 
-            hostId: myPeerId, status: 'waiting', 
-            hostDevice: getDeviceType(), createdAt: Date.now() 
+        await roomsRef.child(currentRoomId).set({
+            hostId: myPeerId,
+            status: 'waiting',
+            hostDevice: getDeviceType(),
+            createdAt: Date.now()
         });
         roomsRef.child(currentRoomId).onDisconnect().remove();
     }
@@ -1247,13 +1266,14 @@ function observeRoom(ref) {
 function setupCallListeners(call) {
     const streamTimeout = setTimeout(() => {
         if (!isCallConnected) {
-            S_Notify.alert("Không thể kết nối video. Vui lòng thử lại.", "error");
+            console.log("Stream timeout, isCallConnected=", isCallConnected);
+            S_Notify.alert("Không thể kết nối video sau 20 giây. Kiểm tra mạng hoặc tường lửa.", "error");
             leaveMatch();
         }
-    }, 10000);
-    call.on('stream', () => clearTimeout(streamTimeout));
-
+    }, 20000);
+    
     call.on('stream', stream => {
+        clearTimeout(streamTimeout);
         isCallConnected = true;
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) {
@@ -1266,11 +1286,18 @@ function setupCallListeners(call) {
     });
     
     call.on('close', () => {
+        clearTimeout(streamTimeout);
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) remoteVideo.srcObject = null;
         document.getElementById('video-placeholder').classList.remove('hidden');
         document.getElementById('waiting-msg').innerText = "Mất kết nối. Đang chờ thử lại...";
         document.getElementById('partner-status-display').innerText = 'Trạng thái: Mất kết nối';
+    });
+    
+    // Log lỗi
+    call.on('error', (err) => {
+        console.error("Peer call error:", err);
+        S_Notify.alert("Lỗi kết nối: " + err, "error");
     });
 }
 
