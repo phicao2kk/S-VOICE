@@ -192,20 +192,26 @@
     display: none !important;
 }
 
-/* 1. FIX LỆCH PHẢI: Ép toàn màn hình tuyệt đối */
+/* Ép toàn màn hình tuyệt đối cho iPhone */
 .ios-fake-fullscreen {
     position: fixed !important;
-    inset: 0 !important; /* Bắt đầu từ đúng góc 0,0 của điện thoại */
+    inset: 0 !important; /* Ép sát 4 góc màn hình */
     width: 100vw !important;
     height: 100vh !important;
-    z-index: 999999 !important;
+    height: -webkit-fill-available !important;
+    z-index: 999999 !important; /* Nổi lên trên tất cả */
     background: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    transform: none !important;
     display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
+    /* Phá vỡ mọi giới hạn của thẻ cha */
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    left: 0 !important;
+    top: 0 !important;
 }
 
 /* Ẩn thanh Navbar khi đang phóng to trên Mobile */
@@ -213,38 +219,23 @@ body.is-fullscreen nav {
     display: none !important;
 }
 
-/* Ép video đối phương luôn ở giữa */
+/* Điều chỉnh tỷ lệ video khi ở chế độ giả lập */
 .ios-fake-fullscreen #remote-video {
     width: 100% !important;
     height: auto !important;
-    max-height: 100% !important;
+    max-height: 70vh !important; 
     object-fit: contain !important;
+    margin: auto !important;
 }
-
-#local-video-container {
-    position: absolute;
-    z-index: 1000000; /* Nằm trên cả video lớn */
-    touch-action: none; /* Quan trọng: Ngăn trình duyệt cuộn trang khi đang kéo video */
-    transition: transform 0.1s ease-out; /* Mượt mà khi di chuyển */
-    user-select: none;
-}
-
-.ios-fake-fullscreen #local-video-container {
-    width: 110px !important; /* Tăng kích thước một chút trên mobile phóng to */
-}
-
-.snap-tl { top: 20px; left: 20px; bottom: auto; right: auto; }
-.snap-tr { top: 20px; right: 20px; bottom: auto; left: auto; }
-.snap-bl { bottom: 100px; left: 20px; top: auto; right: auto; }
-.snap-br { bottom: 100px; right: 20px; top: auto; left: auto; }
 
 .ios-fake-fullscreen .absolute.bottom-8 {
+    bottom: 10% !important;
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
-    bottom: 10% !important;
+    gap: 20px !important;
     transform: none !important;
 }
 
@@ -494,11 +485,8 @@ video {
 
                 <div class="absolute bottom-6 right-6 w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
                     <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
-                    <div id="local-video-container" class="snap-br w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
-                        <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover scale-x-[-1] pointer-events-none"></video>
-                        <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
-                            <i class="fa-solid fa-video-slash text-white/30"></i>
-                        </div>
+                    <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
+                        <i class="fa-solid fa-video-slash text-white/30"></i>
                     </div>
                 </div>
 
@@ -1218,66 +1206,6 @@ function leaveMatch() {
     S_Notify.alert("Đã kết thúc cuộc gọi");
 }
 
-// --- LOGIC KÉO THẢ VIDEO NHỎ VÀ SNAP VÀO 4 GÓC ---
-const localBox = document.getElementById('local-video-container');
-let isDragging = false;
-let startX, startY, initialLeft, initialTop;
-
-localBox.addEventListener('touchstart', (e) => {
-    isDragging = true;
-    const touch = e.touches[0];
-    const rect = localBox.getBoundingClientRect();
-    
-    // Tính toán vị trí tương đối
-    startX = touch.clientX - rect.left;
-    startY = touch.clientY - rect.top;
-    
-    localBox.style.transition = 'none'; // Tắt hiệu ứng mượt khi đang kéo
-    localBox.classList.remove('snap-tl', 'snap-tr', 'snap-bl', 'snap-br');
-}, { passive: false });
-
-localBox.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    e.preventDefault(); // Ngăn cuộn trang khi kéo video
-    
-    const touch = e.touches[0];
-    let x = touch.clientX - startX;
-    let y = touch.clientY - startY;
-    
-    // Giới hạn không cho kéo ra ngoài màn hình
-    x = Math.max(0, Math.min(x, window.innerWidth - localBox.offsetWidth));
-    y = Math.max(0, Math.min(y, window.innerHeight - localBox.offsetHeight));
-    
-    localBox.style.left = x + 'px';
-    localBox.style.top = y + 'px';
-    localBox.style.bottom = 'auto';
-    localBox.style.right = 'auto';
-}, { passive: false });
-
-localBox.addEventListener('touchend', (e) => {
-    if (!isDragging) return;
-    isDragging = false;
-    
-    const rect = localBox.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-    
-    localBox.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-    localBox.style.left = ''; localBox.style.top = ''; localBox.style.right = ''; localBox.style.bottom = '';
-
-    // Xác định góc gần nhất để hít (snap) vào
-    if (centerX < screenW / 2) { // Phía bên trái
-        if (centerY < screenH / 2) localBox.className = localBox.className.replace(/snap-\w+/, 'snap-tl');
-        else localBox.className = localBox.className.replace(/snap-\w+/, 'snap-bl');
-    } else { // Phía bên phải
-        if (centerY < screenH / 2) localBox.className = localBox.className.replace(/snap-\w+/, 'snap-tr');
-        else localBox.className = localBox.className.replace(/snap-\w+/, 'snap-br');
-    }
-});
-
-// --- CẬP NHẬT HÀM FULLSCREEN ĐỂ TRÁNH LỆCH PHẢI ---
 async function toggleFullscreen() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
@@ -1289,14 +1217,18 @@ async function toggleFullscreen() {
 
     if (!isCurrentlyFull) {
         body.classList.add('is-fullscreen');
-        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            // Xóa class của Tailwind gây giới hạn khung hình
-            wrapper.classList.remove('aspect-video', 'max-w-5xl', 'mx-auto');
+        
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // QUAN TRỌNG: Xóa class aspect-video để thẻ div không bị ép tỉ lệ ngang 16:9
+            wrapper.classList.remove('aspect-video');
             wrapper.classList.add('ios-fake-fullscreen');
         } else {
             if (wrapper.requestFullscreen) wrapper.requestFullscreen();
             else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
         }
+        
         icon.className = "fa-solid fa-compress text-white text-lg";
     } else {
         body.classList.remove('is-fullscreen');
@@ -1304,7 +1236,9 @@ async function toggleFullscreen() {
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         
         wrapper.classList.remove('ios-fake-fullscreen');
-        wrapper.classList.add('aspect-video'); // Trả lại tỉ lệ cũ
+        // Trả lại class tỉ lệ ngang khi quay về màn hình thường
+        wrapper.classList.add('aspect-video');
+        
         icon.className = "fa-solid fa-expand text-white text-lg";
     }
 }
