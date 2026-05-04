@@ -1119,9 +1119,7 @@ async function enterPrivateRoom(roomId) {
 
     if (data && data.status === 'waiting') {
         isHost = false;
-        // KHI GUEST PHÒNG RIÊNG THOÁT ĐỘT NGỘT
         roomRef.onDisconnect().update({ status: 'waiting', guestId: null });
-        
         await roomRef.update({ 
             status: 'occupied', guestId: myPeerId, guestCamOn: true, guestDevice: getDeviceType() 
         });
@@ -1134,6 +1132,10 @@ async function enterPrivateRoom(roomId) {
         });
         roomRef.onDisconnect().remove();
     }
+    // 👇 HIỂN THỊ MÃ PHÒNG RIÊNG
+    document.getElementById('display-room-id').innerText = currentRoomId;
+    document.getElementById('room-id-badge').classList.remove('hidden');
+    
     observeRoom(roomRef);
 }
 
@@ -1284,6 +1286,9 @@ function leaveMatch() {
     document.getElementById('video-wrapper').classList.add('aspect-video');
     document.getElementById('local-video-container').classList.remove('local-mobile');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
+    // Ẩn badge mã phòng riêng
+    document.getElementById('room-id-badge').classList.add('hidden');
+    document.getElementById('display-room-id').innerText = '-----';
     document.getElementById('remote-video').srcObject = null;
 
     // Ngắt kết nối stream
