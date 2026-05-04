@@ -1083,89 +1083,106 @@ function leaveMatch() {
         }
     }
 
+    // --- LỆNH QUAN TRỌNG: TỰ ĐỘNG THOÁT TOÀN MÀN HÌNH KHI RỜI PHÒNG ---
+    if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+    } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen().catch(() => {});
+    }
+    
+    // Xóa các class giả lập Fullscreen (cho iPhone)
+    const wrapper = document.getElementById('video-wrapper');
+    wrapper.classList.remove('ios-fake-fullscreen');
+    document.body.classList.remove('is-fullscreen');
+    
+    // Reset icon về trạng thái ban đầu
+    const icon = document.getElementById('fullscreen-icon');
+    if(icon) icon.className = "fa-solid fa-expand text-white text-lg";
+
+    // Dọn dẹp kết nối Peer
     if (remoteCall) remoteCall.close();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (peer) peer.destroy();
 
+    // Ẩn giao diện gọi, hiện lại Lobby
     document.getElementById('peer-call-container').classList.add('hidden');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
-    document.getElementById('room-id-badge').classList.add('hidden'); // Ẩn badge mã phòng
+    document.getElementById('room-id-badge').classList.add('hidden');
     
+    // Reset biến trạng thái
     peer = null; localStream = null; remoteCall = null; 
     currentRoomId = null; isHost = false;
     isMicOn = true; isCamOn = true; 
 
-    S_Notify.alert("Đã rời phòng");
+    S_Notify.alert("Đã rời phòng và thoát toàn màn hình");
 }
 
 async function toggleFullscreen() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
     const body = document.body;
-    
-    // Kiểm tra thiết bị
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // Kiểm tra trạng thái hiện tại (đã phóng to hay chưa)
     const isCurrentlyFull = document.fullscreenElement || 
                             document.webkitFullscreenElement || 
                             wrapper.classList.contains('ios-fake-fullscreen');
 
     if (!isCurrentlyFull) {
-        // --- THỰC HIỆN PHÓNG TO ---
         body.classList.add('is-fullscreen');
-
         if (wrapper.requestFullscreen) {
             wrapper.requestFullscreen();
         } else if (wrapper.webkitRequestFullscreen) {
             wrapper.webkitRequestFullscreen();
         } else {
-            // Giải pháp cuối cùng cho iPhone: Dùng CSS giả lập
             wrapper.classList.add('ios-fake-fullscreen');
-            window.scrollTo(0, 0); // Cuộn lên đầu để tránh lệch
         }
-
-        // Thử ép xoay ngang (Chỉ Android hỗ trợ)
+        
         if (screen.orientation && screen.orientation.lock) {
             await screen.orientation.lock('landscape').catch(() => {});
-        } else if (isIOS) {
-            S_Notify.alert("iPhone: Vui lòng quay ngang máy để xem rõ hơn!");
         }
-        
         icon.className = "fa-solid fa-compress text-white text-lg";
     } else {
-        // --- THỰC HIỆN THOÁT ---
         body.classList.remove('is-fullscreen');
-
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        }
-        
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         wrapper.classList.remove('ios-fake-fullscreen');
         
         if (screen.orientation && screen.orientation.unlock) {
             screen.orientation.unlock();
         }
-        
         icon.className = "fa-solid fa-expand text-white text-lg";
     }
 }
 
-// Lắng nghe sự kiện thoát Fullscreen bằng phím cứng hoặc vuốt trên Android/PC
-document.addEventListener('fullscreenchange', syncFullscreenUI);
-document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
-
-function syncFullscreenUI() {
+function handleFullscreenUI() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    
+    // Kiểm tra xem có đang ở Fullscreen thật (chuẩn hoặc webkit) không
+    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+    if (!isFull) {
+        // Nếu trình duyệt thoát Fullscreen thật (do nhấn Esc hoặc nút hệ thống)
+        // thì ta dọn dẹp luôn cả trạng thái giả lập của iPhone
         wrapper.classList.remove('ios-fake-fullscreen');
         document.body.classList.remove('is-fullscreen');
         if(icon) icon.className = "fa-solid fa-expand text-white text-lg";
+        
+        // Mở khóa xoay màn hình
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+    } else {
+        // Nếu đang ở Fullscreen thật
+        if(icon) icon.className = "fa-solid fa-compress text-white text-lg";
     }
 }
+
+// 2. Đăng ký sự kiện lắng nghe cho mọi trình duyệt
+document.addEventListener('fullscreenchange', handleFullscreenUI);
+document.addEventListener('webkitfullscreenchange', handleFullscreenUI);
+document.addEventListener('mozfullscreenchange', handleFullscreenUI); // Cho Firefox cũ
+document.addEventListener('MSFullscreenChange', handleFullscreenUI); // Cho IE/Edge cũ
 
     // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks=[], communityBlob=null;
@@ -1315,29 +1332,6 @@ function syncFullscreenUI() {
         animationId = requestAnimationFrame(update);
     }
     update();
-}
-
-async function toggleFullscreen() {
-    const wrapper = document.getElementById('video-wrapper');
-    
-    if (!document.fullscreenElement) {
-        try {
-            if (wrapper.requestFullscreen) {
-                await wrapper.requestFullscreen();
-            } else if (wrapper.webkitRequestFullscreen) {
-                await wrapper.webkitRequestFullscreen();
-            }
-            
-            // Xoay ngang màn hình cho mobile
-            if (window.innerWidth < 1024 && screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape').catch(() => {});
-            }
-        } catch (err) {
-            S_Notify.alert("Trình duyệt từ chối phóng to", "error");
-        }
-    } else {
-        document.exitFullscreen();
-    }
 }
 
 // LẮNG NGHE SỰ KIỆN TOÀN MÀN HÌNH ĐỂ ĐỔI ICON
