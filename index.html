@@ -1,1 +1,980 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <!-- Meta & Icons cho PWA -->
+    <link rel="apple-touch-icon" href="https://i.ibb.co/5gSrmbp3/S-VOTES.png">
+    <link rel="icon" type="image/png" href="https://i.ibb.co/5gSrmbp3/S-VOTES.png">
+    <meta name="apple-mobile-web-app-title" content="S-TALK">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S-TALK • Shadowing • Luyện nói thông minh</title>
+    
+    <!-- Tailwind + Fonts + Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Firebase (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"></script>
+    
+    <!-- PeerJS cho WebRTC -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #6366f1; 
+            --accent: #22d3ee; 
+            --bg: #020617; 
+            --glass: rgba(15, 23, 42, 0.7);
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: var(--bg); 
+            color: #f8fafc; 
+            overflow-x: hidden; 
+            min-height: 100vh; 
+        }
 
+        /* Nền Mesh động */
+        .mesh-bg { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; 
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(34, 211, 238, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(168, 85, 247, 0.05) 0px, transparent 50%);
+            filter: blur(80px); 
+        }
+
+        /* Glassmorphism Nâng cao */
+        .glass { 
+            background: var(--glass); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+        }
+
+        /* Nút bấm hiện đại */
+        .btn-main { 
+            background: linear-gradient(135deg, var(--primary), #4f46e5); 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 20px -6px rgba(99, 102, 241, 0.5);
+        }
+        .btn-main:hover { 
+            transform: translateY(-3px) scale(1.02); 
+            box-shadow: 0 15px 30px -8px rgba(99, 102, 241, 0.6);
+            filter: brightness(1.2); 
+        }
+        .btn-main:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+
+        .btn-secondary { 
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            transition: all 0.3s; 
+        }
+        .btn-secondary:hover:not(:disabled) { 
+            background: rgba(255, 255, 255, 0.08); 
+            border-color: var(--primary);
+        }
+
+        /* Toast thông báo */
+        .s-toast { 
+            background: #0f172a; border: 1px solid rgba(255,255,255,0.1); 
+            padding: 14px 24px; border-radius: 16px; font-size: 11px; 
+            font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+            border-left: 4px solid var(--primary); box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
+            animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* Recording visualizer (giả lập) */
+        .rec-pulse { animation: rec-glow 1.5s infinite; }
+        @keyframes rec-glow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        .peer-video { 
+            width: 100%; border-radius: 24px; background: #000; 
+            border: 2px solid rgba(255,255,255,0.05); 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        input, textarea { outline: none !important; }
+        .tab-btn.active { background: var(--primary) !important; color: white !important; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
+        
+        .word-pending { color: #94a3b8; transition: all 0.2s; } 
+        .word-correct { color: #4ade80 !important; text-shadow: 0 0 8px rgba(74, 222, 128, 0.4); font-weight: 700; }
+        .word-wrong { color: #f87171 !important; text-decoration: underline; font-weight: 500; }
+        /* Hiệu ứng hào quang cho nút Mic */
+        #toggle-mic {
+            transition: box-shadow 0.1s ease-out, transform 0.1s ease-out;
+        }
+        .mic-glow {
+            /* Indigo glow mặc định khi có âm thanh */
+            box-shadow: 0 0 15px 5px rgba(99, 102, 241, 0.4);
+        }
+
+    </style>
+</head>
+<body class="selection:bg-indigo-500/30">
+<div class="mesh-bg"></div>
+
+<!-- Navbar -->
+<nav class="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-6 lg:px-12 backdrop-blur-3xl bg-[#020617]/80 z-[100] border-b border-white/5">
+    <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-indigo-600 p-2">
+            <img src="https://i.ibb.co/5gSrmbp3/S-VOTES.png" alt="Logo" class="w-full h-full object-contain brightness-0 invert">
+        </div>
+        <div class="hidden sm:block">
+            <span class="text-2xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">S-TALK</span>
+            <span class="block text-[8px] font-black tracking-[4px] text-indigo-400 -mt-1 uppercase opacity-80">Premium Shadowing Platform</span>
+        </div>
+    </div>
+    
+    <div class="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+        <button data-tab="shadowing" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">SHADOWING</button>
+        <button data-tab="peer" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">PEERS</button>
+        <button data-tab="community" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">COMMUNITY</button>
+    </div>
+</nav>
+
+<main class="pt-28 pb-12 px-4 lg:px-8 max-w-[1400px] mx-auto min-h-screen">
+    
+    <!-- ================= TAB SHADOWING ================= -->
+    <div id="tab-shadowing" class="tab-content animate-in fade-in duration-500">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Sidebar: Danh sách bài tập -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="glass p-6 rounded-[32px] ring-1 ring-white/10">
+                    <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-[4px] mb-6 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span> Thêm bài tập mới
+                    </h3>
+                    <div class="space-y-4">
+                        <input type="text" id="shadow-title" placeholder="Tiêu đề bài học..." class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold focus:border-indigo-500/50 transition-all text-sm">
+                        <textarea id="shadow-text" rows="3" placeholder="Nội dung văn bản tiếng Anh..." class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all"></textarea>
+                        
+                        <div class="relative group cursor-pointer">
+                            <input type="file" id="audio-upload" accept="audio/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                            <div class="border-2 border-dashed border-white/10 group-hover:border-indigo-500/40 rounded-2xl p-6 text-center transition-all bg-white/[0.02]">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-500 group-hover:text-indigo-400 mb-2"></i>
+                                <p class="text-[10px] font-bold text-slate-400 group-hover:text-slate-200 uppercase tracking-wider">Tải lên File mẫu (MP3/WAV)</p>
+                            </div>
+                        </div>
+                        <div id="upload-progress-container" class="hidden h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div id="upload-progress" class="h-full bg-indigo-500 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+
+                        <button onclick="createShadowing()" class="btn-main w-full py-4 rounded-2xl text-white uppercase text-xs font-black tracking-[2px] flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus-circle"></i> ĐĂNG BÀI TẬP
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass p-6 rounded-[32px] ring-1 ring-white/10">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[4px] mb-4">Thư viện bài tập</h3>
+                    <div id="shadow-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                        <!-- Items render here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Player: Khu vực luyện tập -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="glass p-8 rounded-[40px] ring-1 ring-white/10 min-h-[600px] flex flex-col items-center justify-center text-center relative overflow-hidden">
+                    <div id="shadow-player-area" class="w-full max-w-2xl space-y-8 z-10">
+                        <div class="space-y-2">
+                            <h2 id="current-shadow-title" class="text-3xl lg:text-4xl font-black italic tracking-tighter text-white">Chọn bài tập để bắt đầu</h2>
+                            <div id="shadow-audio-player" class="hidden pt-4">
+                                <audio id="sample-audio" controls class="w-full h-10 filter invert opacity-80 hover:opacity-100 transition-all"></audio>
+                            </div>
+                        </div>
+
+                        <div id="shadow-text-display" class="w-full p-8 bg-black/40 rounded-[32px] text-lg lg:text-xl text-slate-200 leading-relaxed font-medium border border-white/5 shadow-inner min-h-[150px] flex flex-wrap justify-center items-center italic gap-x-2 gap-y-1">
+                            Nội dung bài học sẽ hiển thị tại đây...
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
+                            <!-- Nút Bắt đầu ghi -->
+                            <button id="start-recording" class="btn-secondary px-4 py-5 rounded-2xl text-[11px] font-black tracking-widest flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-microphone text-red-500"></i> BẮT ĐẦU GHI
+                            </button>
+                            
+                            <!-- Nút Dừng ghi -->
+                            <button id="stop-recording" disabled class="btn-secondary px-4 py-5 rounded-2xl text-[11px] font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-30">
+                                <i class="fa-solid fa-stop"></i> DỪNG GHI
+                            </button>
+                            
+                            <!-- Nút Nghe lại -->
+                            <button id="play-recording" disabled class="btn-secondary px-4 py-5 rounded-2xl text-[11px] font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-30">
+                                <i class="fa-solid fa-play text-indigo-400"></i> NGHE LẠI
+                            </button>
+
+                            <!-- Nút Dừng nghe lại -->
+                            <button id="stop-playback" disabled class="btn-secondary px-4 py-5 rounded-2xl text-[11px] font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-30">
+                                <i class="fa-solid fa-pause text-amber-500"></i> DỪNG NGHE
+                            </button>
+                        </div>
+                        
+                        <div id="recording-status" class="text-[10px] font-black tracking-[2px] uppercase text-amber-500 h-4"></div>
+
+                        <!-- Web Speech API Card -->
+                        <div class="bg-indigo-500/10 border border-indigo-500/20 p-6 rounded-[32px] space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-[3px] text-indigo-400">Trợ lý AI nhận diện</span>
+                                <div id="accuracy-score" class="text-2xl font-black text-white">--%</div>
+                            </div>
+                                <div class="flex gap-4 w-full">
+                                    <!-- Nút Bắt đầu nhận diện (Bên trái) -->
+                                    <button id="speech-start-btn" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black tracking-widest transition-all flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-play"></i> BẮT ĐẦU CHẤM ĐIỂM
+                                    </button>
+
+                                    <!-- Nút Hủy/Dừng nhận diện (Bên phải) -->
+                                    <button id="speech-stop-btn" disabled class="flex-1 py-4 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-500 border border-white/10 rounded-2xl text-[10px] font-black tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-20">
+                                        <i class="fa-solid fa-xmark"></i> HỦY / DỪNG
+                                    </button>
+                                </div>
+                            <p id="speech-result" class="text-sm text-slate-400 italic min-h-[20px]"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TAB PEER PRACTICE ================= -->
+<div id="tab-peer" class="tab-content hidden animate-in fade-in duration-500">
+    
+    <!-- 1. GIAO DIỆN PHÒNG CHỜ (LOBBY) -->
+    <div id="peer-lobby-container" class="max-w-2xl mx-auto">
+        <div class="glass p-10 rounded-[40px] flex flex-col justify-center border border-white/10 shadow-2xl">
+            <h3 class="text-3xl font-black uppercase italic tracking-tighter mb-2">Partner Matching</h3>
+            <p class="text-slate-400 text-sm mb-8 font-medium">Nhập mã phòng để kết nối với đối tác luyện nói.</p>
+            
+            <div class="space-y-6">
+                <div class="relative group">
+                    <i class="fa-solid fa-hashtag absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 text-xl transition-all group-focus-within:scale-110"></i>
+                    <input type="text" id="peer-roomid" placeholder="Mã phòng (VD: 123, ABC...)" class="w-full pl-16 pr-6 py-6 rounded-[24px] bg-white/5 border border-white/10 text-xl font-bold tracking-widest focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none">
+                </div>
+                
+                <button onclick="createOrJoinRoom()" class="btn-main w-full py-6 rounded-[24px] font-black tracking-[3px] text-sm shadow-indigo-500/20">
+                    THAM GIA / TẠO PHÒNG GỌI
+                </button>
+                
+                <div id="peer-status" class="text-center text-[11px] font-black text-slate-500 uppercase tracking-[3px]">Sẵn sàng kết nối</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. GIAO DIỆN ĐANG GỌI (IN-CALL) - ẨN MẶC ĐỊNH -->
+    <div id="peer-call-container" class="hidden animate-in slide-in-from-bottom-10 duration-700">
+        <div class="max-w-5xl mx-auto glass p-8 rounded-[40px] border border-white/10 relative overflow-hidden">
+            <!-- Khung Video chính -->
+            <div class="w-full aspect-video bg-black rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
+                <!-- Video đối phương -->
+                <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                
+                <!-- Video của mình (nhỏ) -->
+                <div class="absolute bottom-6 right-6 w-32 sm:w-56 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 group">
+                    <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span class="text-[8px] font-black uppercase tracking-widest">Bạn</span>
+                    </div>
+                </div>
+
+                <!-- Controls Over Video -->
+                <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 z-30">
+                    <button id="toggle-mic" onclick="toggleMic()" class="w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all">
+                        <i id="mic-icon" class="fa-solid fa-microphone text-lg text-white"></i>
+                    </button>
+                    <button id="toggle-cam" onclick="toggleCamera()" class="w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all">
+                        <i id="cam-icon" class="fa-solid fa-video text-lg text-white"></i>
+                    </button>
+                    <button onclick="hangUp()" class="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 transition-all shadow-xl shadow-red-500/40">
+                        <i class="fa-solid fa-phone-slash text-lg text-white"></i>
+                    </button>
+                </div>
+
+                <!-- Chờ đối phương -->
+                <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm z-10">
+                    <div class="w-20 h-20 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <p class="mt-6 text-xs font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác tham gia...</p>
+                </div>
+                
+                <div class="absolute top-6 left-6 bg-black/40 px-5 py-2.5 rounded-full backdrop-blur-md border border-white/10 text-[10px] font-black uppercase tracking-[2px] z-30 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span id="partner-id-display">Phòng: ---</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- ================= TAB CỘNG ĐỒNG ================= -->
+    <div id="tab-community" class="tab-content hidden animate-in fade-in duration-500">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-4">
+                <div class="glass p-6 rounded-[32px] sticky top-28 ring-1 ring-white/10">
+                    <h3 class="text-[10px] font-black uppercase tracking-[4px] text-indigo-400 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Chia sẻ bài nói
+                    </h3>
+                    <div class="space-y-4">
+                        <input type="text" id="post-title" placeholder="Tiêu đề bài nói (VD: IELTS Speaking P2)" class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-sm font-bold">
+                        <textarea id="post-desc" rows="3" placeholder="Mô tả ngắn hoặc ghi chú..." class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-sm"></textarea>
+                        
+                        <div class="flex gap-2">
+                            <button id="rec-post-start" class="btn-secondary flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:text-red-400">
+                                <i class="fa-solid fa-microphone mr-2"></i> Ghi âm
+                            </button>
+                            <button id="rec-post-stop" disabled class="btn-secondary flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-20">
+                                <i class="fa-solid fa-stop mr-2"></i> Dừng
+                            </button>
+                        </div>
+                        
+                        <audio id="post-audio-preview" controls class="hidden w-full h-8 filter invert opacity-70"></audio>
+                        
+                        <button onclick="uploadCommunityPost()" class="btn-main w-full py-4 rounded-xl text-xs font-black tracking-[2px]">
+                            ĐĂNG LÊN CỘNG ĐỒNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-6">
+                <div id="community-posts-list" class="space-y-6 overflow-y-auto max-h-[80vh] pr-2">
+                    <!-- Community posts go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Toasts & Modals -->
+<div id="s-notification-root" class="fixed top-24 left-1/2 -translate-x-1/2 z-[20000] flex flex-col gap-3 pointer-events-none"></div>
+
+<div id="s-confirm-modal" class="fixed inset-0 z-[30001] hidden items-center justify-center p-6 bg-[#020617]/90 backdrop-blur-xl">
+    <div class="glass p-10 rounded-[40px] max-w-md w-full text-center border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div class="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fa-solid fa-question text-3xl text-indigo-400"></i>
+        </div>
+        <h3 class="text-2xl font-black uppercase italic tracking-tighter mb-4 text-white">Xác nhận</h3>
+        <p id="s-confirm-msg" class="text-slate-400 text-sm leading-relaxed mb-8"></p>
+        <div class="flex gap-4">
+            <button id="s-confirm-no" class="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5">Hủy bỏ</button>
+            <button id="s-confirm-yes" class="flex-1 py-4 bg-white text-black hover:bg-indigo-400 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Đồng ý</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ------------------- FIREBASE & PEER CONFIG (Giữ nguyên) -------------------
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWqkvbs8Ce5bhH3FYWgdRKQ0t3KXKQY3Q",
+        authDomain: "fir-s-votes-pro.firebaseapp.com",
+        databaseURL: "https://fir-s-votes-pro-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fir-s-votes-pro",
+        storageBucket: "fir-s-votes-pro.firebasestorage.app",
+        appId: "1:581437404210:web:d1486f45a749a07d24f82b",
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const rdb = firebase.database();
+    const storage = firebase.storage();
+
+    let mediaRecorder;
+    let audioChunks = [];
+    let localAudioUrl = null;
+    let currentPlayback = null; 
+    let currentShadowingId = null;
+    let currentShadowAudioUrl = null;
+    let recognition;
+    let isMicOn = true;
+    let isCamOn = true;
+    let audioContext, analyser, dataArray, animationId; // Biến cho hiệu ứng mic
+
+    const S_Notify = { 
+        alert: (msg, type='success') => {
+            const root = document.getElementById('s-notification-root');
+            const toast = document.createElement('div');
+            toast.className = `s-toast ${type === 'error' ? 'border-l-red-500' : 'border-l-indigo-500'}`;
+            toast.innerHTML = `<div class="flex items-center gap-3">
+                <i class="fa-solid ${type==='success'?'fa-circle-check text-green-500':'fa-circle-exclamation text-red-500'}"></i>
+                <span class="text-white">${msg}</span>
+            </div>`;
+            root.appendChild(toast);
+            setTimeout(()=>{ toast.style.opacity='0'; toast.style.transform='translateY(-20px)'; setTimeout(()=>toast.remove(),400)}, 3000);
+        }, 
+        confirm: (msg, onYes) => {
+            const modal = document.getElementById('s-confirm-modal');
+            document.getElementById('s-confirm-msg').innerText = msg;
+            modal.style.display = 'flex';
+            document.getElementById('s-confirm-yes').onclick = () => { modal.style.display = 'none'; onYes(); };
+            document.getElementById('s-confirm-no').onclick = () => { modal.style.display = 'none'; };
+        } 
+    };
+
+    // ================= 1. SHADOWING LOGIC =================
+    async function loadShadowingList() {
+        const snapshot = await rdb.ref('s_talk/shadowing').once('value');
+        const data = snapshot.val() || {};
+        const container = document.getElementById('shadow-list');
+        container.innerHTML = '';
+        for(let [id, item] of Object.entries(data)) {
+            const div = document.createElement('div');
+            div.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group';
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-1">
+                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${item.title}</p>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-indigo-500 transition-all"></i>
+                </div>
+                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${item.text.substring(0,40)}...</p>
+            `;
+            div.onclick = () => loadShadowingItem(id, item);
+            container.appendChild(div);
+        }
+    }
+
+    function loadShadowingItem(id, item) {
+        currentShadowingId = id;
+        document.getElementById('current-shadow-title').innerText = item.title;
+        
+        // Tách văn bản thành mảng các từ
+        const words = item.text.split(/\s+/);
+        const container = document.getElementById('shadow-text-display');
+        
+        // Mỗi từ sẽ có class 'mx-0.5' để tạo khoảng cách nhỏ
+        container.innerHTML = words.map((word, index) => 
+            `<span id="word-${index}" class="word-pending inline-block mx-0.5">${word}</span>`
+        ).join(''); 
+
+        const audioPlayerDiv = document.getElementById('shadow-audio-player');
+        const audioEl = document.getElementById('sample-audio');
+        if(item.audioUrl) {
+            audioEl.src = item.audioUrl;
+            audioPlayerDiv.classList.remove('hidden');
+        } else { audioPlayerDiv.classList.add('hidden'); }
+        currentShadowAudioUrl = item.audioUrl;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function createShadowing() {
+        const title = document.getElementById('shadow-title').value.trim();
+        const text = document.getElementById('shadow-text').value.trim();
+        if(!title || !text) return S_Notify.alert("Nhập đủ tiêu đề và văn bản","error");
+        
+        const fileInput = document.getElementById('audio-upload');
+        let audioUrl = null;
+        if(fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const storageRef = storage.ref(`shadow_audio/${Date.now()}_${file.name}`);
+            const uploadTask = storageRef.put(file);
+            const progressContainer = document.getElementById('upload-progress-container');
+            const progressBar = document.getElementById('upload-progress');
+            
+            progressContainer.classList.remove('hidden');
+            uploadTask.on('state_changed', snap => {
+                let pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+                progressBar.style.width = pct + '%';
+            }, err => S_Notify.alert("Lỗi upload file", "error"), async () => {
+                audioUrl = await storageRef.getDownloadURL();
+                await saveShadowToDB(title, text, audioUrl);
+                progressContainer.classList.add('hidden');
+            });
+        } else {
+            await saveShadowToDB(title, text, null);
+        }
+    }
+
+    async function saveShadowToDB(title, text, audioUrl) {
+        const newRef = rdb.ref('s_talk/shadowing').push();
+        await newRef.set({ title, text, audioUrl, createdAt: Date.now() });
+        S_Notify.alert("Đã đăng bài tập thành công!");
+        document.getElementById('shadow-title').value = '';
+        document.getElementById('shadow-text').value = '';
+        document.getElementById('audio-upload').value = '';
+        loadShadowingList();
+    }
+
+    const startBtn = document.getElementById('start-recording');
+    const stopBtn = document.getElementById('stop-recording');
+    const playBtn = document.getElementById('play-recording');
+    const stopPlayBtn = document.getElementById('stop-playback');
+    const statusLabel = document.getElementById('recording-status');
+
+    // --- 1. CHỨC NĂNG BẮT ĐẦU GHI ---
+    startBtn.onclick = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: 'audio/wav' });
+                localAudioUrl = URL.createObjectURL(blob);
+                
+                // Cập nhật trạng thái nút sau khi ghi xong
+                playBtn.disabled = false;
+                statusLabel.innerHTML = '✅ Đã ghi xong. Bạn có thể nghe lại.';
+                startBtn.classList.remove('rec-pulse');
+                
+                // Tắt các track để giải phóng Micro
+                stream.getTracks().forEach(t => t.stop());
+            };
+
+            mediaRecorder.start();
+            
+            // Cập nhật UI
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            playBtn.disabled = true;
+            stopPlayBtn.disabled = true;
+            startBtn.classList.add('rec-pulse');
+            statusLabel.innerHTML = '🔴 ĐANG GHI ÂM...';
+            
+        } catch (e) {
+            S_Notify.alert("Không thể truy cập Micro!", "error");
+        }
+    };
+
+    // --- 2. CHỨC NĂNG DỪNG GHI ---
+    stopBtn.onclick = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    };
+
+    // --- 3. CHỨC NĂNG NGHE LẠI ---
+    playBtn.onclick = () => {
+        if (!localAudioUrl) return;
+
+        // Nếu đang phát dở thì dừng cái cũ
+        if (currentPlayback) {
+            currentPlayback.pause();
+        }
+
+        currentPlayback = new Audio(localAudioUrl);
+        currentPlayback.play();
+        
+        // Cập nhật UI
+        playBtn.disabled = true;
+        stopPlayBtn.disabled = false;
+        statusLabel.innerHTML = '🔊 ĐANG PHÁT LẠI BẢN GHI...';
+
+        // Khi phát xong tự động trả lại trạng thái nút
+        currentPlayback.onended = () => {
+            playBtn.disabled = false;
+            stopPlayBtn.disabled = true;
+            statusLabel.innerHTML = '✅ Đã phát xong.';
+        };
+    };
+
+    // --- 4. CHỨC NĂNG DỪNG NGHE LẠI ---
+    stopPlayBtn.onclick = () => {
+        if (currentPlayback) {
+            currentPlayback.pause();
+            currentPlayback.currentTime = 0; // Quay về đầu
+            
+            // Cập nhật UI
+            playBtn.disabled = false;
+            stopPlayBtn.disabled = true;
+            statusLabel.innerHTML = '⏸️ Đã dừng phát.';
+        }
+    };
+
+    // Web Speech API
+    if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    const startSpeechBtn = document.getElementById('speech-start-btn');
+    const stopSpeechBtn = document.getElementById('speech-stop-btn');
+    const speechResult = document.getElementById('speech-result');
+
+    // --- LOGIC NHẤN NÚT BẮT ĐẦU ---
+    startSpeechBtn.onclick = () => {
+        // Reset văn bản về trạng thái chờ
+        document.querySelectorAll('#shadow-text-display span').forEach(el => {
+            el.className = 'word-pending inline-block mx-0.5';
+        });
+        
+        try {
+            recognition.start();
+        } catch (e) { console.error("Đang chạy rồi..."); }
+    };
+
+    // --- LOGIC NHẤN NÚT DỪNG ---
+    stopSpeechBtn.onclick = () => {
+        recognition.stop();
+    };
+
+    // --- KHI HỆ THỐNG BẮT ĐẦU NGHE ---
+    recognition.onstart = () => {
+        // Cập nhật trạng thái nút
+        startSpeechBtn.disabled = true;
+        startSpeechBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> ĐANG LẮNG NGHE...';
+        
+        stopSpeechBtn.disabled = false;
+        stopSpeechBtn.classList.replace('bg-white/5', 'bg-red-500/10');
+        
+        speechResult.innerHTML = '🎙️ Hãy bắt đầu đọc văn bản phía trên...';
+    };
+
+    // --- KHI HỆ THỐNG DỪNG ---
+    recognition.onend = () => {
+        // Trả lại trạng thái nút ban đầu
+        startSpeechBtn.disabled = false;
+        startSpeechBtn.innerHTML = '<i class="fa-solid fa-play"></i> BẮT ĐẦU CHẤM ĐIỂM';
+        
+        stopSpeechBtn.disabled = true;
+        stopSpeechBtn.classList.replace('bg-red-500/10', 'bg-white/5');
+        
+        if(speechResult.innerHTML.includes('Đang lắng nghe')) {
+            speechResult.innerHTML = '⏹️ Đã dừng nhận diện.';
+        }
+    };
+
+    // Thêm biến con trỏ vào đầu script (cùng chỗ với mediaRecorder)
+let currentCursor = 0; 
+
+// Trong logic nút BẮT ĐẦU (startSpeechBtn.onclick), hãy reset con trỏ:
+// currentCursor = 0;
+
+    recognition.onresult = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            interimTranscript += event.results[i][0].transcript;
+        }
+
+        // 1. Lấy danh sách các từ bạn vừa nói (spokenWords)
+        const spokenWords = interimTranscript.toLowerCase().trim().split(/\s+/);
+        const originalSpans = document.querySelectorAll('#shadow-text-display span');
+
+        // 2. Duyệt qua từng từ bạn vừa nói để khớp với văn bản theo thứ tự
+        spokenWords.forEach(spokenWord => {
+            const cleanedSpoken = spokenWord.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
+            if (!cleanedSpoken) return;
+
+            // Tìm từ khớp trong phạm vi "nhìn xa" 7 từ tính từ con trỏ hiện tại
+            // Việc nhìn xa giúp nếu bạn đọc sai/bỏ lỡ 1-2 từ, hệ thống vẫn bắt kịp từ tiếp theo
+            let lookAheadRange = 7; 
+            let foundMatch = false;
+
+            for (let i = currentCursor; i < Math.min(currentCursor + lookAheadRange, originalSpans.length); i++) {
+                const targetWord = originalSpans[i].innerText.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
+
+                if (cleanedSpoken === targetWord) {
+                    // A. Đánh dấu những từ bạn đã TRẢI QUA nhưng không khớp là SAI (Màu đỏ)
+                    for (let j = currentCursor; j < i; j++) {
+                        if (!originalSpans[j].classList.contains('word-correct')) {
+                            originalSpans[j].className = 'word-wrong inline-block mx-0.5';
+                        }
+                    }
+
+                    // B. Đánh dấu từ hiện tại là ĐÚNG (Màu xanh)
+                    originalSpans[i].className = 'word-correct inline-block mx-0.5';
+                    
+                    // C. Cập nhật con trỏ tiến về phía trước
+                    currentCursor = i + 1;
+                    foundMatch = true;
+                    break; 
+                }
+            }
+        });
+
+        // 3. Hiển thị text đang nghe
+        speechResult.innerHTML = `Đang nghe: <span class="text-indigo-400 italic">"${interimTranscript}"</span>`;
+        
+        // 4. Tính điểm dựa trên số từ màu xanh
+        const correctCount = document.querySelectorAll('.word-correct').length;
+        const percent = Math.round((correctCount / originalSpans.length) * 100);
+        document.getElementById('accuracy-score').innerHTML = `${percent}%`;
+
+        // 5. Cuộn văn bản theo con trỏ (tự động cuộn xuống khi đọc dài)
+        if (originalSpans[currentCursor]) {
+            originalSpans[currentCursor].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        if (percent >= 98) {
+            canvasConfetti({ particleCount: 100, spread: 70 });
+            recognition.stop();
+        }
+    };
+
+    recognition.onerror = () => {
+        recognition.stop();
+        S_Notify.alert("Lỗi Micro hoặc nhận diện bị ngắt", "error");
+    };
+}
+
+    function compareTextSimilarity(t1, t2) {
+        const w1 = t1.split(/\s+/), w2 = t2.split(/\s+/);
+        const s1 = new Set(w1);
+        let match = 0;
+        w2.forEach(w => { if(s1.has(w)) match++; });
+        return match / Math.max(w1.length, w2.length);
+    }
+
+    // ================= 2. PEER LOGIC =================
+    let peer, localStream, remoteCall;
+
+    async function createOrJoinRoom() {
+    const roomId = document.getElementById('peer-roomid').value.trim();
+    if (!roomId) return S_Notify.alert("Vui lòng nhập mã phòng!", "error");
+
+    try {
+        // Lấy stream kèm cả Video và Audio
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true, 
+            video: { width: 1280, height: 720 } 
+        });
+
+        document.getElementById('peer-lobby-container').classList.add('hidden');
+        document.getElementById('peer-call-container').classList.remove('hidden');
+        document.getElementById('local-video').srcObject = localStream;
+        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId}`;
+        
+        // Kích hoạt hiệu ứng vang theo giọng nói
+        startVolumeMeter(localStream);
+
+        peer = new Peer(roomId);
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', remoteStream => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+                document.getElementById('video-placeholder').classList.add('hidden');
+            });
+            remoteCall = call;
+        });
+
+        peer.on('open', (id) => {
+            const call = peer.call(roomId, localStream);
+            call.on('stream', remoteStream => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+                document.getElementById('video-placeholder').classList.add('hidden');
+            });
+            remoteCall = call;
+        });
+
+    } catch (e) {
+        S_Notify.alert("Không thể mở Camera/Mic. Hãy kiểm tra quyền truy cập!", "error");
+    }
+}
+
+function toggleMic() {
+    if (!localStream) return;
+    isMicOn = !isMicOn;
+    localStream.getAudioTracks().forEach(track => track.enabled = isMicOn);
+    
+    const btn = document.getElementById('toggle-mic');
+    const icon = document.getElementById('mic-icon');
+    
+    if (isMicOn) {
+        btn.className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
+        icon.className = 'fa-solid fa-microphone text-lg text-white';
+    } else {
+        btn.className = 'w-14 h-14 rounded-full bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-500/40';
+        icon.className = 'fa-solid fa-microphone-slash text-lg text-white';
+    }
+}
+
+function toggleCamera() {
+    if (!localStream) return;
+    isCamOn = !isCamOn;
+    localStream.getVideoTracks().forEach(track => track.enabled = isCamOn);
+    
+    const btn = document.getElementById('toggle-cam');
+    const icon = document.getElementById('cam-icon');
+    
+    if (isCamOn) {
+        btn.className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
+        icon.className = 'fa-solid fa-video text-lg text-white';
+    } else {
+        btn.className = 'w-14 h-14 rounded-full bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-500/40';
+        icon.className = 'fa-solid fa-video-slash text-lg text-white';
+    }
+}
+
+
+// --- TRONG HÀM hangUp() ---
+function hangUp() {
+    if (remoteCall) remoteCall.close();
+    if (localStream) localStream.getTracks().forEach(track => track.stop());
+    if (peer) peer.destroy();
+    if (animationId) cancelAnimationFrame(animationId);
+    if (audioContext) audioContext.close();
+
+    document.getElementById('peer-call-container').classList.add('hidden');
+    document.getElementById('peer-lobby-container').classList.remove('hidden');
+    document.getElementById('remote-video').srcObject = null;
+    document.getElementById('local-video').srcObject = null;
+    document.getElementById('video-placeholder').classList.remove('hidden');
+    
+    // Reset trạng thái nút về mặc định
+    isMicOn = true; isCamOn = true;
+    document.getElementById('toggle-mic').className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
+    document.getElementById('mic-icon').className = 'fa-solid fa-microphone text-lg text-white';
+    document.getElementById('toggle-cam').className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
+    document.getElementById('cam-icon').className = 'fa-solid fa-video text-lg text-white';
+
+    S_Notify.alert("Đã kết thúc cuộc gọi");
+}
+
+    // ================= 3. COMMUNITY LOGIC =================
+    let communityRecorder, communityChunks=[], communityBlob=null;
+    const recStart = document.getElementById('rec-post-start');
+    const recStop = document.getElementById('rec-post-stop');
+    const previewAudio = document.getElementById('post-audio-preview');
+
+    recStart.onclick = async() => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        communityRecorder = new MediaRecorder(stream);
+        communityChunks=[];
+        communityRecorder.ondataavailable = e => communityChunks.push(e.data);
+        communityRecorder.onstop = () => {
+            communityBlob = new Blob(communityChunks, { type:'audio/mp3' });
+            previewAudio.src = URL.createObjectURL(communityBlob);
+            previewAudio.classList.remove('hidden');
+            stream.getTracks().forEach(t=>t.stop());
+        };
+        communityRecorder.start();
+        recStart.disabled=true; recStop.disabled=false;
+        S_Notify.alert("Bắt đầu ghi âm chia sẻ...");
+    };
+    recStop.onclick = () => { communityRecorder.stop(); recStart.disabled=false; recStop.disabled=true; };
+
+    async function uploadCommunityPost() {
+        const title = document.getElementById('post-title').value.trim();
+        const desc = document.getElementById('post-desc').value.trim();
+        if(!title || !communityBlob) return S_Notify.alert("Thiếu tiêu đề hoặc chưa ghi âm","error");
+        
+        const storageRef = storage.ref(`community/${Date.now()}_post.mp3`);
+        await storageRef.put(communityBlob);
+        const audioUrl = await storageRef.getDownloadURL();
+        
+        await rdb.ref('s_talk/community').push().set({
+            title, desc, audioUrl, author: "Người dùng", likes:0, comments: [], createdAt: Date.now()
+        });
+        
+        S_Notify.alert("Đã đăng thành công lên cộng đồng!");
+        document.getElementById('post-title').value = ''; document.getElementById('post-desc').value = '';
+        previewAudio.classList.add('hidden'); communityBlob=null;
+        loadCommunityPosts();
+    }
+
+    async function loadCommunityPosts() {
+        const snapshot = await rdb.ref('s_talk/community').orderByChild('createdAt').once('value');
+        const posts = snapshot.val() || {};
+        const container = document.getElementById('community-posts-list');
+        container.innerHTML = '';
+        
+        Object.entries(posts).reverse().forEach(([id, post]) => {
+            const card = document.createElement('div');
+            card.className = 'glass p-6 rounded-[32px] border border-white/5 space-y-4';
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-black text-indigo-400 uppercase tracking-wider">${post.title}</h4>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">${new Date(post.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-pink-500/10 px-3 py-1.5 rounded-full border border-pink-500/20">
+                        <i class="fa-solid fa-heart text-pink-500 text-[10px]"></i>
+                        <span class="text-[10px] font-black text-pink-500">${post.likes||0}</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">${post.desc||''}</p>
+                <audio controls src="${post.audioUrl}" class="w-full h-8 filter invert opacity-80 rounded-lg"></audio>
+                <div class="flex gap-4 pt-2">
+                    <button onclick="likePost('${id}', ${post.likes||0})" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-pink-500 transition-colors">Thích</button>
+                    <button onclick="openRatingModal('${id}')" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 transition-colors">Góp ý</button>
+                </div>
+                <div id="comments-${id}" class="space-y-2 pt-2 border-t border-white/5">
+                    ${post.comments ? post.comments.map(c => `<p class="text-[10px] text-slate-400"><span class="text-indigo-400">@Guest:</span> ${c}</p>`).join('') : ''}
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="cmt-${id}" placeholder="Nhận xét bài nói..." class="bg-black/20 border border-white/5 text-[10px] p-3 rounded-xl flex-1 focus:border-indigo-500/50">
+                    <button onclick="addComment('${id}')" class="bg-indigo-600 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest">Gửi</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    window.likePost = (id, currentLikes) => { rdb.ref(`s_talk/community/${id}/likes`).set(currentLikes+1); loadCommunityPosts(); };
+    window.addComment = (id) => { 
+        const inp = document.getElementById(`cmt-${id}`); 
+        const text = inp.value.trim(); 
+        if(text) { 
+            rdb.ref(`s_talk/community/${id}/comments`).transaction(comments => {
+                comments = comments || []; comments.push(text); return comments;
+            });
+            inp.value=''; S_Notify.alert("Đã gửi nhận xét!"); loadCommunityPosts(); 
+        } 
+    };
+    window.openRatingModal = (id) => { S_Notify.confirm("Bạn muốn gửi lời khen/đánh giá cho bài nói này?", () => S_Notify.alert("Cảm ơn bạn đã đóng góp!")); };
+
+    // Tab Controller
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if(btn.dataset.tab === 'community') loadCommunityPosts();
+            if(btn.dataset.tab === 'shadowing') loadShadowingList();
+        };
+    });
+
+    // Khởi tạo
+    document.querySelector('[data-tab="shadowing"]').click();
+
+    function startVolumeMeter(stream) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    const micBtn = document.getElementById('toggle-mic');
+
+    function update() {
+        if (!isMicOn) {
+            micBtn.style.boxShadow = "none";
+            animationId = requestAnimationFrame(update);
+            return;
+        }
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        let average = sum / bufferLength;
+
+        if (average > 10) {
+            let glowSize = average / 2;
+            micBtn.style.boxShadow = `0 0 ${glowSize}px ${glowSize/3}px rgba(99, 102, 241, 0.6)`;
+        } else {
+            micBtn.style.boxShadow = "none";
+        }
+        animationId = requestAnimationFrame(update);
+    }
+    update();
+}
+
+</script>
+</body>
+</html>
