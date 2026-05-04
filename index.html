@@ -847,44 +847,59 @@ let currentCursor = 0;
     var isCamOn = true;
 
     async function startMatching(type) {
-        roomType = type;
-        isMicOn = true; // RESET LẠI BIẾN
-        isCamOn = true; // RESET LẠI BIẾN
-        let privateId = document.getElementById('peer-roomid-input').value.trim();
-        if (type === 'private' && !privateId) return S_Notify.alert("Nhập mã phòng riêng!", "error");
+    roomType = type;
+    
+    // --- ÉP TRẠNG THÁI VỀ BẬT KHI BẮT ĐẦU ---
+    isMicOn = true;
+    isCamOn = true;
 
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: true, noiseSuppression: true }, 
-                video: { width: 1280, height: 720 } 
-            });
+    // Cập nhật giao diện nút Mic ngay lập tức
+    const micBtn = document.getElementById('toggle-mic');
+    const micIcon = document.getElementById('mic-icon');
+    micBtn.classList.remove('bg-red-500');
+    micIcon.className = 'fa-solid fa-microphone';
 
-            document.getElementById('peer-lobby-container').classList.add('hidden');
-            document.getElementById('peer-call-container').classList.remove('hidden');
-            document.getElementById('local-video').srcObject = localStream;
-            
-            // RESET GIAO DIỆN VỀ TRẠNG THÁI CHỜ
-            document.getElementById('video-placeholder').classList.remove('hidden');
-            document.getElementById('remote-cam-off-overlay').classList.add('hidden');
-            
-            if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
+    // Cập nhật giao diện nút Cam ngay lập tức
+    const camBtn = document.getElementById('toggle-cam');
+    const camIcon = document.getElementById('cam-icon');
+    camBtn.classList.remove('bg-red-500');
+    camIcon.className = 'fa-solid fa-video';
+    document.getElementById('local-cam-off-overlay').classList.add('hidden');
 
-            peer = new Peer();
-            peer.on('open', (id) => {
-                myPeerId = id;
-                if (type === 'random') findRandomMatch();
-                else enterPrivateRoom(privateId);
-            });
+    let privateId = document.getElementById('peer-roomid-input').value.trim();
+    if (type === 'private' && !privateId) return S_Notify.alert("Nhập mã phòng riêng!", "error");
 
-            peer.on('call', call => {
-                remoteCall = call;
-                call.answer(localStream);
-                setupCallListeners(call);
-            });
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { echoCancellation: true, noiseSuppression: true }, 
+            video: { width: 1280, height: 720 } 
+        });
 
-            peer.on('error', (err) => { leaveMatch(); });
-        } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
-    }
+        document.getElementById('peer-lobby-container').classList.add('hidden');
+        document.getElementById('peer-call-container').classList.remove('hidden');
+        document.getElementById('local-video').srcObject = localStream;
+        
+        document.getElementById('video-placeholder').classList.remove('hidden');
+        document.getElementById('remote-cam-off-overlay').classList.add('hidden');
+        
+        if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            myPeerId = id;
+            if (type === 'random') findRandomMatch();
+            else enterPrivateRoom(privateId);
+        });
+
+        peer.on('call', call => {
+            remoteCall = call;
+            call.answer(localStream);
+            setupCallListeners(call);
+        });
+
+        peer.on('error', (err) => { leaveMatch(); });
+    } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
+}
 
     async function findRandomMatch() {
         const roomsRef = rdb.ref('peer_rooms/random');
@@ -892,7 +907,11 @@ let currentCursor = 0;
         const rooms = snapshot.val();
         if (rooms) {
             currentRoomId = Object.keys(rooms)[0]; isHost = false;
-            await roomsRef.child(currentRoomId).update({ status: 'occupied', guestId: myPeerId });
+            await roomsRef.child(currentRoomId).update({ 
+                status: 'occupied', 
+                guestId: myPeerId,
+                guestCamOn: true // Ép Firebase biết guest đang bật cam
+            });
             remoteCall = peer.call(rooms[currentRoomId].hostId, localStream);
             setupCallListeners(remoteCall);
         } else {
@@ -909,7 +928,12 @@ let currentCursor = 0;
         const snapshot = await roomRef.once('value');
         const data = snapshot.val();
         if (data && data.status === 'waiting') {
-            isHost = false; await roomRef.update({ status: 'occupied', guestId: myPeerId });
+            isHost = false; 
+            await roomRef.update({ 
+                status: 'occupied', 
+                guestId: myPeerId,
+                guestCamOn: true // Ép Firebase biết guest đang bật cam
+            });
             remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
         } else {
             isHost = true; await roomRef.set({ hostId: myPeerId, status: 'waiting', hostCamOn: true, guestCamOn: true });
@@ -989,44 +1013,42 @@ let currentCursor = 0;
         }
     }
 
-    function leaveMatch() {
-        const path = roomType === 'random' ? 'random' : 'private';
-        if (currentRoomId) {
-            const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
-            ref.off(); // Ngừng lắng nghe để tránh lỗi loop
+function leaveMatch() {
+    const path = roomType === 'random' ? 'random' : 'private';
+    if (currentRoomId) {
+        const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
+        ref.off(); 
 
-            if (isHost) {
-                // Nếu mình là chủ phòng thì xóa luôn phòng
-                ref.remove();
-            } else {
-                // Nếu mình là khách thì reset phòng về trạng thái chờ và reset luôn trạng thái CAM
-                ref.update({ 
-                    status: 'waiting', 
-                    guestId: null,
-                    hostCamOn: true,  // Reset lại trạng thái cam
-                    guestCamOn: true  // Reset lại trạng thái cam
-                });
-            }
+        if (isHost) {
+            ref.remove();
+        } else {
+            // Khi Guest thoát, đưa phòng về trạng thái chờ và reset camera cho Host thấy
+            ref.update({ 
+                status: 'waiting', 
+                guestId: null,
+                guestCamOn: true 
+            });
         }
-
-        if (remoteCall) remoteCall.close();
-        if (localStream) localStream.getTracks().forEach(t => t.stop());
-        if (peer) peer.destroy();
-
-        // Dọn dẹp UI
-        document.getElementById('peer-call-container').classList.add('hidden');
-        document.getElementById('peer-lobby-container').classList.remove('hidden');
-        document.getElementById('remote-cam-off-overlay').classList.add('hidden');
-        document.getElementById('video-placeholder').classList.remove('hidden');
-        document.getElementById('remote-video').srcObject = null;
-        
-        // Reset biến về mặc định
-        peer = null; localStream = null; remoteCall = null; 
-        currentRoomId = null; isHost = false;
-        isMicOn = true; isCamOn = true; // Luôn để mặc định là BẬT cho lần sau
-
-        S_Notify.alert("Đã rời cuộc gọi và làm sạch phòng");
     }
+
+    if (remoteCall) remoteCall.close();
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    if (peer) peer.destroy();
+
+    // Dọn dẹp giao diện
+    document.getElementById('peer-call-container').classList.add('hidden');
+    document.getElementById('peer-lobby-container').classList.remove('hidden');
+    document.getElementById('remote-cam-off-overlay').classList.add('hidden');
+    document.getElementById('video-placeholder').classList.remove('hidden');
+    document.getElementById('remote-video').srcObject = null;
+    
+    // RESET BIẾN TOÀN CỤC
+    peer = null; localStream = null; remoteCall = null; 
+    currentRoomId = null; isHost = false;
+    isMicOn = true; isCamOn = true; 
+
+    S_Notify.alert("Đã rời phòng");
+}
 
     async function toggleFullscreen() {
         const wrapper = document.getElementById('video-wrapper');
