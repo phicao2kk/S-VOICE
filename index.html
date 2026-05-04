@@ -1078,7 +1078,11 @@ let currentCursor = 0;
             setupCallListeners(call);
         });
 
-        peer.on('error', (err) => { leaveMatch(); });
+        peer.on('error', (err) => {
+            console.error("Peer error:", err);
+            S_Notify.alert("Lỗi kết nối: " + (err.type || "Không xác định"), "error");
+            leaveMatch();
+        });
     } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
 }
 
@@ -1090,7 +1094,7 @@ async function findRandomMatch() {
     const now = Date.now();
     const allRooms = await roomsRef.once('value');
     allRooms.forEach(snap => {
-        if (snap.val().createdAt && (now - snap.val().createdAt > 30000) && snap.val().status === 'waiting') {
+        if (snap.val().createdAt && (now - snap.val().createdAt > 15000) && snap.val().status === 'waiting') {
             snap.ref.remove();
         }
     });
@@ -1232,8 +1236,7 @@ function observeRoom(ref) {
             placeholder.classList.remove('hidden');
         }
         else if (data.status === 'occupied') {
-            // Khi phòng đã có đủ 2 người, ẩn placeholder ngay lập tức
-            document.getElementById('video-placeholder').classList.add('hidden');
+            // Không làm gì cả, placeholder sẽ được ẩn khi có stream
         }
 
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
@@ -1242,14 +1245,23 @@ function observeRoom(ref) {
 }
 
 function setupCallListeners(call) {
+    const streamTimeout = setTimeout(() => {
+        if (!isCallConnected) {
+            S_Notify.alert("Không thể kết nối video. Vui lòng thử lại.", "error");
+            leaveMatch();
+        }
+    }, 10000);
+    call.on('stream', () => clearTimeout(streamTimeout));
+
     call.on('stream', stream => {
         isCallConnected = true;
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) {
             remoteVideo.srcObject = stream;
-            // Ẩn placeholder ngay lập tức
-            document.getElementById('video-placeholder').classList.add('hidden');
-            document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
+            remoteVideo.onloadedmetadata = () => {
+                document.getElementById('video-placeholder').classList.add('hidden');
+                document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
+            };
         }
     });
     
