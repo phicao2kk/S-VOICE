@@ -531,6 +531,10 @@ body.is-fullscreen nav {
     const rdb = firebase.database();
     const storage = firebase.storage();
     
+    function getDeviceType() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "mobile" : "pc";
+}
+
     // Nếu bạn muốn dùng Analytics (tùy chọn)
     if (typeof firebase.analytics === "function") {
         firebase.analytics();
@@ -956,35 +960,40 @@ let currentCursor = 0;
     } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
 }
 
-    async function findRandomMatch() {
-        const roomsRef = rdb.ref('peer_rooms/random');
-        const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
-        const rooms = snapshot.val();
-        if (rooms) {
-            currentRoomId = Object.keys(rooms)[0]; isHost = false;
-            await roomsRef.child(currentRoomId).update({ 
-                status: 'occupied', 
-                guestId: myPeerId,
-                guestCamOn: true // Ép Firebase biết guest đang bật cam
-            });
-            remoteCall = peer.call(rooms[currentRoomId].hostId, localStream);
-            setupCallListeners(remoteCall);
-        } else {
-            isHost = true; currentRoomId = myPeerId;
-            await roomsRef.child(currentRoomId).set({ hostId: myPeerId, status: 'waiting', hostCamOn: true, guestCamOn: true });
-            roomsRef.child(currentRoomId).onDisconnect().remove();
-        }
-        observeRoom(roomsRef.child(currentRoomId));
+async function findRandomMatch() {
+    const roomsRef = rdb.ref('peer_rooms/random');
+    const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
+    const rooms = snapshot.val();
+    if (rooms) {
+        currentRoomId = Object.keys(rooms)[0]; isHost = false;
+        await roomsRef.child(currentRoomId).update({ 
+            status: 'occupied', 
+            guestId: myPeerId,
+            guestCamOn: true,
+            guestDevice: getDeviceType() // THÊM DÒNG NÀY
+        });
+        remoteCall = peer.call(rooms[currentRoomId].hostId, localStream);
+        setupCallListeners(remoteCall);
+    } else {
+        isHost = true; currentRoomId = myPeerId;
+        await roomsRef.child(currentRoomId).set({ 
+            hostId: myPeerId, 
+            status: 'waiting', 
+            hostCamOn: true, 
+            guestCamOn: true,
+            hostDevice: getDeviceType() // THÊM DÒNG NÀY
+        });
+        roomsRef.child(currentRoomId).onDisconnect().remove();
     }
+    observeRoom(roomsRef.child(currentRoomId));
+}
 
 async function enterPrivateRoom(roomId) {
     currentRoomId = roomId;
-    
-    // HIỆN MÃ PHÒNG VÀ GÁN GIÁ TRỊ (Bắt buộc)
     const badge = document.getElementById('room-id-badge');
-    const display = document.getElementById('display-room-id');
+    const displayId = document.getElementById('display-room-id');
     if(badge) badge.classList.remove('hidden');
-    if(display) display.innerText = roomId;
+    if(displayId) displayId.innerText = roomId;
 
     const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
     const snapshot = await roomRef.once('value');
@@ -995,17 +1004,18 @@ async function enterPrivateRoom(roomId) {
         await roomRef.update({ 
             status: 'occupied', 
             guestId: myPeerId,
-            guestCamOn: true 
+            guestCamOn: true,
+            guestDevice: getDeviceType() // THÊM DÒNG NÀY
         });
-        remoteCall = peer.call(data.hostId, localStream); 
-        setupCallListeners(remoteCall);
+        remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
     } else {
         isHost = true; 
         await roomRef.set({ 
             hostId: myPeerId, 
             status: 'waiting', 
             hostCamOn: true, 
-            guestCamOn: true 
+            guestCamOn: true,
+            hostDevice: getDeviceType() // THÊM DÒNG NÀY
         });
         roomRef.onDisconnect().remove();
     }
@@ -1373,24 +1383,6 @@ function handleFullscreenUI() {
         }
     }
 }
-
-function getDeviceType() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "mobile" : "pc";
-}
-
-// Khi Host tạo phòng:
-await roomsRef.child(currentRoomId).set({ 
-    hostId: myPeerId, 
-    status: 'waiting', 
-    hostDevice: getDeviceType() 
-});
-
-// Khi Guest vào phòng:
-await roomsRef.child(currentRoomId).update({ 
-    status: 'occupied', 
-    guestId: myPeerId,
-    guestDevice: getDeviceType() 
-});
 
 </script>
 </body>
