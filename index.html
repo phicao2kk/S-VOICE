@@ -219,6 +219,24 @@ body.is-fullscreen nav {
     object-fit: contain !important; /* Giữ nguyên tỷ lệ, không bị méo */
 }
 
+/* Chế độ Mobile gọi Mobile: Video dọc sẽ tràn màn hình dọc */
+.mobile-to-mobile video#remote-video {
+    object-fit: cover !important; /* Tràn màn hình như TikTok/Zalo */
+}
+
+/* Chế độ Mobile gọi PC: Video ngang sẽ nằm giữa màn hình dọc (nếu chưa xoay) */
+/* Hoặc tràn màn hình ngang (nếu đã xoay) */
+#video-wrapper:not(.mobile-to-mobile) video#remote-video {
+    object-fit: contain !important;
+    background: #000;
+}
+
+/* Tối ưu hóa cho iPhone khi để dọc (Mobile-Mobile) */
+.ios-fake-fullscreen.mobile-to-mobile {
+    height: 100vh !important;
+    width: 100vw !important;
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -1002,35 +1020,35 @@ async function enterPrivateRoom(roomId) {
     }
 
     function observeRoom(ref) {
-        ref.on('value', (snap) => {
-            const data = snap.val(); if (!data) return;
+    ref.on('value', (snap) => {
+        const data = snap.val(); if (!data) return;
+        if (data.status !== 'occupied') return;
 
-            const placeholder = document.getElementById('video-placeholder');
-            const remoteOverlay = document.getElementById('remote-cam-off-overlay');
+        const myDevice = getDeviceType();
+        const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
+        const wrapper = document.getElementById('video-wrapper');
 
-            if (data.status === 'waiting') {
-                // KHI ĐANG CHỜ: Ẩn thông báo tắt Cam, hiện bảng xoay loading
-                placeholder.classList.remove('hidden');
-                remoteOverlay.classList.add('hidden'); 
-                document.getElementById('remote-video').srcObject = null;
-                document.getElementById('partner-status-display').innerText = "Đang chờ đối tác...";
-                if (remoteCall) remoteCall.close();
-            } else {
-                // KHI ĐÃ KẾT NỐI
-                document.getElementById('partner-status-display').innerText = "Đã kết nối";
-                
-                // Kiểm tra Camera của đối phương
-                const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
-                
-                // Chỉ hiện overlay tắt cam nếu partnerCam thực sự bằng false
-                if (partnerCam === false) {
-                    remoteOverlay.classList.remove('hidden');
-                } else {
-                    remoteOverlay.classList.add('hidden');
+        // CHỈ XỬ LÝ NẾU MÌNH ĐANG DÙNG MOBILE
+        if (myDevice === 'mobile') {
+            if (partnerDevice === 'pc') {
+                // ĐỐI PHƯƠNG DÙNG PC -> XOAY NGANG ĐỂ XEM RÕ
+                S_Notify.alert("Đối tác dùng PC - Hãy xoay ngang máy để nhìn rõ!", "success");
+                // Tự động kích hoạt fullscreen/giả lập nếu cần
+                if (!wrapper.classList.contains('ios-fake-fullscreen') && !document.fullscreenElement) {
+                    toggleFullscreen(); 
                 }
+            } else {
+                // ĐỐI PHƯƠNG CŨNG DÙNG MOBILE -> ĐỂ DỌC TỰ NHIÊN
+                S_Notify.alert("Đối tác dùng Mobile - Xem chế độ dọc", "success");
+                // Thoát fullscreen nếu đang lỡ bật
+                if (document.fullscreenElement || wrapper.classList.contains('ios-fake-fullscreen')) {
+                    toggleFullscreen(); 
+                }
+                wrapper.classList.add('mobile-to-mobile');
             }
-        });
-    }
+        }
+    });
+}
 
     function setupCallListeners(call) {
         call.on('stream', stream => {
@@ -1355,6 +1373,24 @@ function handleFullscreenUI() {
         }
     }
 }
+
+function getDeviceType() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "mobile" : "pc";
+}
+
+// Khi Host tạo phòng:
+await roomsRef.child(currentRoomId).set({ 
+    hostId: myPeerId, 
+    status: 'waiting', 
+    hostDevice: getDeviceType() 
+});
+
+// Khi Guest vào phòng:
+await roomsRef.child(currentRoomId).update({ 
+    status: 'occupied', 
+    guestId: myPeerId,
+    guestDevice: getDeviceType() 
+});
 
 </script>
 </body>
