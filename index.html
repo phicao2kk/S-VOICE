@@ -132,12 +132,14 @@
 
 /* Đảm bảo video luôn nằm dưới cùng ở mọi chế độ */
 #remote-video {
-    z-index: 1;
+    z-index: 1 !important;
 }
 
 /* Bảng chờ: Nằm trên video nhưng dưới các nút bấm */
 #video-placeholder {
     z-index: 10 !important;
+    background: rgba(2, 6, 23, 0.95) !important; /* Màu nền tối để che video cũ */
+    backdrop-filter: blur(10px);
 }
 
 /* Các nút điều khiển: Luôn ở lớp cao nhất */
@@ -1080,7 +1082,8 @@ async function enterPrivateRoom(roomId) {
     ref.on('value', (snap) => {
         const data = snap.val(); 
         if (!data) {
-            // Nếu phòng bị xóa đột ngột (Host thoát)
+            // Nếu phòng bị xóa (Host thoát), người còn lại cũng thoát ra lobby
+            S_Notify.alert("Phòng đã bị đóng");
             leaveMatch();
             return;
         }
@@ -1090,57 +1093,59 @@ async function enterPrivateRoom(roomId) {
         const remoteVideo = document.getElementById('remote-video');
 
         if (data.status === 'waiting') {
-            // --- ĐỐI PHƯƠNG ĐÃ THOÁT: HIỆN LẠI MÀN HÌNH CHỜ ---
-            placeholder.classList.remove('hidden');
-            if (remoteVideo) remoteVideo.srcObject = null;
-            statusDisplay.innerText = "Trạng thái: Đang chờ...";
+            // --- ĐỐI PHƯƠNG ĐÃ THOÁT: QUAY LẠI TRẠNG THÁI CHỜ ---
             
-            // Nếu mình là khách mà host thoát (phòng về waiting), khách nên thoát ra lobby
+            // 1. Hiện lại spinner và bảng chờ
+            placeholder.classList.remove('hidden'); 
+            
+            // 2. Quan trọng: Xóa src của video để không bị hiện hình cũ/đen
+            if (remoteVideo) {
+                remoteVideo.srcObject = null;
+                remoteVideo.load(); // Buộc video reset
+            }
+            
+            // 3. Cập nhật thông báo
+            statusDisplay.innerText = "Trạng thái: Đang chờ đối tác...";
+            document.getElementById('waiting-msg').innerText = "Đối tác đã rời đi. Đang chờ người mới...";
+
+            // Nếu mình là khách mà chủ phòng thoát (phòng reset), khách nên ra ngoài
             if (!isHost) {
                 S_Notify.alert("Chủ phòng đã rời đi");
                 leaveMatch();
             }
         } else if (data.status === 'occupied') {
-            // --- ĐÃ CÓ ĐỐI TÁC KẾT NỐI ---
-            placeholder.classList.add('hidden'); // Ẩn spinner
-            
+            // --- CÓ ĐỐI TÁC MỚI VÀO ---
+            // Placeholder sẽ được ẩn bên trong hàm setupCallListeners khi nhận được stream thực sự
             const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
-            const myDevice = getDeviceType();
-
-            // Cập nhật trạng thái hiển thị
             statusDisplay.innerText = `Đối tác: ${partnerDevice ? partnerDevice.toUpperCase() : 'Đang kết nối...'}`;
-
-            // Logic thông báo xoay màn hình
-            if (myDevice === 'mobile' && partnerDevice === 'pc') {
-                if (!document.body.classList.contains('is-fullscreen')) {
-                    S_Notify.alert("Đối tác dùng PC - Hãy bấm Phóng to và Xoay ngang!");
-                }
-            }
         }
 
-        // Kiểm tra Camera đối phương
+        // Kiểm tra Camera đối phương (để hiện overlay nếu họ tắt cam)
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
         document.getElementById('remote-cam-off-overlay').classList.toggle('hidden', partnerCam !== false);
     });
 }
 
     function setupCallListeners(call) {
-        call.on('stream', stream => {
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) {
-                remoteVideo.srcObject = stream;
-                // KHI CÓ LUỒNG VIDEO THÌ ẨN BẢNG CHỜ NGAY LẬP TỨC
+    call.on('stream', stream => {
+        const remoteVideo = document.getElementById('remote-video');
+        if (remoteVideo) {
+            remoteVideo.srcObject = stream;
+            // CHỈ ẩn bảng chờ khi luồng video đã sẵn sàng
+            remoteVideo.onloadedmetadata = () => {
                 document.getElementById('video-placeholder').classList.add('hidden');
-            }
-        });
-        
-        call.on('close', () => {
-            if (isHost) {
-                const path = roomType === 'random' ? 'random' : 'private';
-                rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update({ status: 'waiting', guestId: null });
-            } else { leaveMatch(); }
-        });
-    }
+            };
+        }
+    });
+    
+    // Sự kiện khi Peer ngắt kết nối (do mạng yếu hoặc thoát)
+    call.on('close', () => {
+        const remoteVideo = document.getElementById('remote-video');
+        if (remoteVideo) remoteVideo.srcObject = null;
+        document.getElementById('video-placeholder').classList.remove('hidden');
+        document.getElementById('waiting-msg').innerText = "Mất kết nối. Đang chờ thử lại...";
+    });
+}
 
     function toggleMic() {
         if (!localStream) return;
