@@ -334,6 +334,17 @@ video {
     }
 }
 
+/* Mặc định PC: ngang 16:9 */
+#local-video-container {
+    aspect-ratio: 16 / 9;
+}
+/* Mobile: dọc 9:16 */
+@media (max-width: 768px) {
+    #local-video-container.local-mobile {
+        aspect-ratio: 9 / 16;
+    }
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -529,8 +540,8 @@ video {
                     <span id="partner-status-display">Trạng thái: ---</span>
                 </div>
 
-                <div class="absolute bottom-6 right-6 w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
-                    <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
+                <div id="local-video-container" class="absolute bottom-6 right-6 w-28 sm:w-48 bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
+                    <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover"></video>
                     <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
                         <i class="fa-solid fa-video-slash text-white/30"></i>
                     </div>
@@ -1030,6 +1041,13 @@ let currentCursor = 0;
 
         document.getElementById('peer-lobby-container').classList.add('hidden');
         document.getElementById('peer-call-container').classList.remove('hidden');
+        document.getElementById('partner-status-display').innerText = 'Trạng thái: Đang kết nối...';
+        const localContainer = document.getElementById('local-video-container');
+        if (getDeviceType() === 'mobile') {
+            localContainer.classList.add('local-mobile');
+        } else {
+            localContainer.classList.remove('local-mobile');
+        }
         const wrapper = document.getElementById('video-wrapper');
         // Quan trọng: xóa class aspect-video mặc định của Tailwind
         wrapper.classList.remove('aspect-video');
@@ -1149,10 +1167,12 @@ function observeRoom(ref) {
         const data = snap.val(); 
         const placeholder = document.getElementById('video-placeholder');
         const waitingMsg = document.getElementById('waiting-msg');
+        const statusSpan = document.getElementById('partner-status-display');
 
         if (!data) { leaveMatch(); return; }
 
         if (data.status === 'waiting') {
+            statusSpan.innerText = 'Trạng thái: Đang chờ đối tác...';
             if (!isCallConnected) {
                 waitingMsg.innerText = "Đang tìm kiếm đối tác phù hợp...";
             } else {
@@ -1180,6 +1200,7 @@ function setupCallListeners(call) {
         if (remoteVideo) {
             remoteVideo.srcObject = stream;
             remoteVideo.onloadedmetadata = () => {
+                document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
                 document.getElementById('video-placeholder').classList.add('hidden');
             };
         }
@@ -1191,6 +1212,7 @@ function setupCallListeners(call) {
         if (remoteVideo) remoteVideo.srcObject = null;
         document.getElementById('video-placeholder').classList.remove('hidden');
         document.getElementById('waiting-msg').innerText = "Mất kết nối. Đang chờ thử lại...";
+        document.getElementById('partner-status-display').innerText = 'Trạng thái: Mất kết nối';
     });
 }
 
@@ -1246,6 +1268,7 @@ function leaveMatch() {
     document.getElementById('peer-call-container').classList.add('hidden');
     document.getElementById('video-wrapper').classList.remove('mobile-call', 'pc-call');
     document.getElementById('video-wrapper').classList.add('aspect-video');
+    document.getElementById('local-video-container').classList.remove('local-mobile');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
     document.getElementById('remote-video').srcObject = null;
 
