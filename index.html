@@ -1113,6 +1113,12 @@ async function findRandomMatch() {
             guestId: myPeerId,
             guestDevice: getDeviceType() 
         });
+        // 👇 Thêm dòng này để khi guest thoát đột ngột, phòng trở về waiting
+        roomsRef.child(currentRoomId).onDisconnect().update({ 
+            status: 'waiting', 
+            guestId: null,
+            guestDevice: null 
+        });
         
         // Thực hiện gọi
         remoteCall = peer.call(targetHostId, localStream);
@@ -1169,7 +1175,36 @@ function observeRoom(ref) {
         const waitingMsg = document.getElementById('waiting-msg');
         const statusSpan = document.getElementById('partner-status-display');
 
-        if (!data) { leaveMatch(); return; }
+        if (!data) { 
+            // Phòng đã bị xóa (host thoát đột ngột)
+            if (!isHost) {
+                // Guest: chuyển thành host, tạo phòng mới
+                isHost = true;
+                isCallConnected = false;
+                const path = roomType === 'random' ? 'random' : 'private';
+                const newRoomRef = rdb.ref(`peer_rooms/${path}/${myPeerId}`);
+                newRoomRef.set({ 
+                    hostId: myPeerId, status: 'waiting', 
+                    hostDevice: getDeviceType(), createdAt: Date.now() 
+                });
+                newRoomRef.onDisconnect().remove();
+                // Cập nhật currentRoomId
+                currentRoomId = myPeerId;
+                // Observe phòng mới
+                observeRoom(newRoomRef);
+                // UI
+                document.getElementById('partner-status-display').innerText = 'Trạng thái: Đang chờ đối tác...';
+                document.getElementById('waiting-msg').innerText = "Đối tác đã rời. Bạn là chủ phòng mới, đang chờ...";
+                document.getElementById('video-placeholder').classList.remove('hidden');
+                // Xóa remote video
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) remoteVideo.srcObject = null;
+            } else {
+                // Host thoát (lẽ ra không xảy ra vì host đã xóa phòng), nhưng nếu có thì leave
+                leaveMatch();
+            }
+            return;
+        }
 
         if (data.status === 'waiting') {
             statusSpan.innerText = 'Trạng thái: Đang chờ đối tác...';
@@ -1177,9 +1212,22 @@ function observeRoom(ref) {
                 waitingMsg.innerText = "Đang tìm kiếm đối tác phù hợp...";
             } else {
                 waitingMsg.innerText = "Đối tác đã rời đi. Đang chờ người mới...";
-                // Quan trọng: Nếu đối tác rời đi, ta tự động làm Host để chờ người tiếp theo
+                // Reset remote video
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) remoteVideo.srcObject = null;
+                // Đánh dấu chưa kết nối và chuyển thành host (nếu chưa phải host)
                 isCallConnected = false;
-                isHost = true; 
+                isHost = true;
+                // Cập nhật trạng thái trên Firebase để đồng bộ (nếu cần)
+                const path = roomType === 'random' ? 'random' : 'private';
+                if (currentRoomId) {
+                    rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update({ 
+                        status: 'waiting', 
+                        guestId: null,
+                        guestCamOn: true,
+                        guestDevice: null 
+                    });
+                }
             }
             placeholder.classList.remove('hidden');
         }
