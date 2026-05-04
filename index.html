@@ -192,23 +192,31 @@
     display: none !important;
 }
 
-/* Lớp này dùng để giả lập Fullscreen cho iPhone khi API bị chặn */
+/* Ép toàn màn hình tuyệt đối cho iPhone */
 .ios-fake-fullscreen {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 9999 !important;
+    width: 100% !important;
+    height: 100% !important;
+    height: -webkit-fill-available !important; /* Fix lỗi khoảng trắng Safari */
+    z-index: 99999 !important;
     background: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border-radius: 0 !important;
 }
 
-/* Đảm bảo khi xoay ngang trên iPhone, video vẫn lấp đầy */
-@media screen and (orientation: landscape) {
-    .ios-fake-fullscreen video#remote-video {
-        object-fit: contain !important;
-    }
+/* Ẩn thanh Navbar khi đang phóng to trên Mobile */
+body.is-fullscreen nav {
+    display: none !important;
+}
+
+/* Điều chỉnh tỷ lệ video khi ở chế độ giả lập */
+.ios-fake-fullscreen video#remote-video {
+    height: 100% !important;
+    width: 100% !important;
+    object-fit: contain !important; /* Giữ nguyên tỷ lệ, không bị méo */
 }
 
     </style>
@@ -951,14 +959,14 @@ let currentCursor = 0;
         observeRoom(roomsRef.child(currentRoomId));
     }
 
-    async function enterPrivateRoom(roomId) {
+async function enterPrivateRoom(roomId) {
     currentRoomId = roomId;
     
-    // Hiển thị mã phòng lên giao diện ngay lập tức
+    // HIỆN MÃ PHÒNG VÀ GÁN GIÁ TRỊ (Bắt buộc)
     const badge = document.getElementById('room-id-badge');
-    const displayId = document.getElementById('display-room-id');
-    badge.classList.remove('hidden');
-    displayId.innerText = roomId;
+    const display = document.getElementById('display-room-id');
+    if(badge) badge.classList.remove('hidden');
+    if(display) display.innerText = roomId;
 
     const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
     const snapshot = await roomRef.once('value');
@@ -1093,35 +1101,47 @@ function leaveMatch() {
 async function toggleFullscreen() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
+    const body = document.body;
+    
+    // Kiểm tra thiết bị
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    if (!document.fullscreenElement && !document.webkitFullscreenElement && !wrapper.classList.contains('ios-fake-fullscreen')) {
-        // --- BẮT ĐẦU PHÓNG TO ---
-        try {
-            if (wrapper.requestFullscreen) {
-                await wrapper.requestFullscreen();
-            } else if (wrapper.webkitRequestFullscreen) {
-                await wrapper.webkitRequestFullscreen();
-            } else if (isIOS) {
-                // iPhone không hỗ trợ API trên div, dùng CSS giả lập
-                wrapper.classList.add('ios-fake-fullscreen');
-            }
+    // Kiểm tra trạng thái hiện tại (đã phóng to hay chưa)
+    const isCurrentlyFull = document.fullscreenElement || 
+                            document.webkitFullscreenElement || 
+                            wrapper.classList.contains('ios-fake-fullscreen');
 
-            // Ép xoay ngang (Chỉ Android hỗ trợ)
-            if (screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape').catch(() => {});
-            } else if (isIOS) {
-                S_Notify.alert("Vui lòng mở khóa xoay và quay ngang điện thoại", "success");
-            }
-            
-            icon.className = "fa-solid fa-compress text-white text-lg";
-        } catch (e) {
+    if (!isCurrentlyFull) {
+        // --- THỰC HIỆN PHÓNG TO ---
+        body.classList.add('is-fullscreen');
+
+        if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+        } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+        } else {
+            // Giải pháp cuối cùng cho iPhone: Dùng CSS giả lập
             wrapper.classList.add('ios-fake-fullscreen');
+            window.scrollTo(0, 0); // Cuộn lên đầu để tránh lệch
         }
+
+        // Thử ép xoay ngang (Chỉ Android hỗ trợ)
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock('landscape').catch(() => {});
+        } else if (isIOS) {
+            S_Notify.alert("iPhone: Vui lòng quay ngang máy để xem rõ hơn!");
+        }
+        
+        icon.className = "fa-solid fa-compress text-white text-lg";
     } else {
-        // --- THOÁT PHÓNG TO ---
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        // --- THỰC HIỆN THOÁT ---
+        body.classList.remove('is-fullscreen');
+
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
         
         wrapper.classList.remove('ios-fake-fullscreen');
         
@@ -1133,13 +1153,19 @@ async function toggleFullscreen() {
     }
 }
 
-// Lắng nghe phím ESC hoặc thao tác thoát trên Android
-document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        document.getElementById('video-wrapper').classList.remove('ios-fake-fullscreen');
-        document.getElementById('fullscreen-icon').className = "fa-solid fa-expand text-white text-lg";
+// Lắng nghe sự kiện thoát Fullscreen bằng phím cứng hoặc vuốt trên Android/PC
+document.addEventListener('fullscreenchange', syncFullscreenUI);
+document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
+
+function syncFullscreenUI() {
+    const wrapper = document.getElementById('video-wrapper');
+    const icon = document.getElementById('fullscreen-icon');
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        wrapper.classList.remove('ios-fake-fullscreen');
+        document.body.classList.remove('is-fullscreen');
+        if(icon) icon.className = "fa-solid fa-expand text-white text-lg";
     }
-});
+}
 
     // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks=[], communityBlob=null;
