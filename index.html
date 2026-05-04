@@ -192,6 +192,25 @@
     display: none !important;
 }
 
+/* Lớp này dùng để giả lập Fullscreen cho iPhone khi API bị chặn */
+.ios-fake-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    background: #000 !important;
+    border-radius: 0 !important;
+}
+
+/* Đảm bảo khi xoay ngang trên iPhone, video vẫn lấp đầy */
+@media screen and (orientation: landscape) {
+    .ios-fake-fullscreen video#remote-video {
+        object-fit: contain !important;
+    }
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -933,30 +952,39 @@ let currentCursor = 0;
     }
 
     async function enterPrivateRoom(roomId) {
-        currentRoomId = roomId;
-        
-        // Hiển thị mã phòng lên giao diện
-        document.getElementById('room-id-badge').classList.remove('hidden');
-        document.getElementById('display-room-id').innerText = roomId;
+    currentRoomId = roomId;
+    
+    // Hiển thị mã phòng lên giao diện ngay lập tức
+    const badge = document.getElementById('room-id-badge');
+    const displayId = document.getElementById('display-room-id');
+    badge.classList.remove('hidden');
+    displayId.innerText = roomId;
 
-        const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
-        const snapshot = await roomRef.once('value');
-        const data = snapshot.val();
-        if (data && data.status === 'waiting') {
-            isHost = false; 
-            await roomRef.update({ 
-                status: 'occupied', 
-                guestId: myPeerId,
-                guestCamOn: true 
-            });
-            remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
-        } else {
-            isHost = true; 
-            await roomRef.set({ hostId: myPeerId, status: 'waiting', hostCamOn: true, guestCamOn: true });
-            roomRef.onDisconnect().remove();
-        }
-        observeRoom(roomRef);
+    const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
+    const snapshot = await roomRef.once('value');
+    const data = snapshot.val();
+
+    if (data && data.status === 'waiting') {
+        isHost = false; 
+        await roomRef.update({ 
+            status: 'occupied', 
+            guestId: myPeerId,
+            guestCamOn: true 
+        });
+        remoteCall = peer.call(data.hostId, localStream); 
+        setupCallListeners(remoteCall);
+    } else {
+        isHost = true; 
+        await roomRef.set({ 
+            hostId: myPeerId, 
+            status: 'waiting', 
+            hostCamOn: true, 
+            guestCamOn: true 
+        });
+        roomRef.onDisconnect().remove();
     }
+    observeRoom(roomRef);
+}
 
     function copyRoomId() {
         const roomId = document.getElementById('display-room-id').innerText;
@@ -1065,35 +1093,38 @@ function leaveMatch() {
 async function toggleFullscreen() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && !wrapper.classList.contains('ios-fake-fullscreen')) {
+        // --- BẮT ĐẦU PHÓNG TO ---
         try {
-            // Thực hiện Fullscreen
             if (wrapper.requestFullscreen) {
                 await wrapper.requestFullscreen();
             } else if (wrapper.webkitRequestFullscreen) {
                 await wrapper.webkitRequestFullscreen();
-            } else if (wrapper.mozRequestFullScreen) {
-                await wrapper.mozRequestFullScreen();
+            } else if (isIOS) {
+                // iPhone không hỗ trợ API trên div, dùng CSS giả lập
+                wrapper.classList.add('ios-fake-fullscreen');
             }
 
-            // Ép xoay ngang (Chỉ hoạt động trên Android Chrome, iOS cần người dùng tự xoay)
+            // Ép xoay ngang (Chỉ Android hỗ trợ)
             if (screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape').catch(err => {
-                    console.log("Xoay ngang tự động bị chặn hoặc không hỗ trợ.");
-                });
+                await screen.orientation.lock('landscape').catch(() => {});
+            } else if (isIOS) {
+                S_Notify.alert("Vui lòng mở khóa xoay và quay ngang điện thoại", "success");
             }
             
             icon.className = "fa-solid fa-compress text-white text-lg";
         } catch (e) {
-            S_Notify.alert("Lỗi khi phóng to màn hình", "error");
+            wrapper.classList.add('ios-fake-fullscreen');
         }
     } else {
-        // Thoát Fullscreen
+        // --- THOÁT PHÓNG TO ---
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         
-        // Mở khóa hướng màn hình
+        wrapper.classList.remove('ios-fake-fullscreen');
+        
         if (screen.orientation && screen.orientation.unlock) {
             screen.orientation.unlock();
         }
@@ -1101,6 +1132,14 @@ async function toggleFullscreen() {
         icon.className = "fa-solid fa-expand text-white text-lg";
     }
 }
+
+// Lắng nghe phím ESC hoặc thao tác thoát trên Android
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        document.getElementById('video-wrapper').classList.remove('ios-fake-fullscreen');
+        document.getElementById('fullscreen-icon').className = "fa-solid fa-expand text-white text-lg";
+    }
+});
 
     // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks=[], communityBlob=null;
