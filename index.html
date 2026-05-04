@@ -125,6 +125,72 @@
             box-shadow: 0 0 15px 5px rgba(99, 102, 241, 0.4);
         }
 
+/* --- GIAO DIỆN BÌNH THƯỜNG --- */
+#video-wrapper {
+    position: relative;
+}
+
+/* Đảm bảo video luôn nằm dưới cùng ở mọi chế độ */
+#remote-video {
+    z-index: 1;
+}
+
+/* Bảng chờ: Nằm trên video nhưng dưới các nút bấm */
+#video-placeholder {
+    z-index: 10 !important;
+}
+
+/* Các nút điều khiển: Luôn ở lớp cao nhất */
+#video-wrapper .z-\[30\], 
+#video-wrapper .pill-glass {
+    z-index: 30 !important;
+}
+
+/* --- GIAO DIỆN PHÓNG TO (Giữ các hàm của bạn) --- */
+#video-wrapper:fullscreen video#remote-video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important; /* Giữ tỷ lệ chuẩn */
+    z-index: 1;
+}
+
+/* Ép các UI con phải nổi lên trong Fullscreen */
+#video-wrapper:fullscreen .absolute {
+    z-index: 9999 !important;
+}
+
+#video-wrapper:fullscreen .top-6 { top: 2rem !important; }
+#video-wrapper:fullscreen .bottom-8 { bottom: 3rem !important; }
+
+/* Ép video-placeholder hiển thị đúng khi ở fullscreen */
+#video-wrapper:fullscreen #video-placeholder {
+    z-index: 800 !important;
+    display: flex !important;
+}
+
+/* Hàm ẩn quan trọng: Khi JS thêm class .hidden thì phải biến mất hoàn toàn */
+#video-placeholder.hidden {
+    display: none !important;
+}
+
+/* Đảm bảo các nút bấm luôn nổi lên trên cao nhất */
+#video-wrapper .z-30 {
+    z-index: 30 !important;
+}
+
+/* Kiểu nút viên thuốc cao cấp */
+.pill-glass {
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Ép video-placeholder và remote-overlay ẩn khi có class .hidden */
+#video-placeholder.hidden, #remote-cam-off-overlay.hidden, #local-cam-off-overlay.hidden {
+    display: none !important;
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -255,66 +321,79 @@
 
     <!-- ================= TAB PEER PRACTICE ================= -->
 <div id="tab-peer" class="tab-content hidden animate-in fade-in duration-500">
-    
     <!-- 1. GIAO DIỆN PHÒNG CHỜ (LOBBY) -->
     <div id="peer-lobby-container" class="max-w-2xl mx-auto">
         <div class="glass p-10 rounded-[40px] flex flex-col justify-center border border-white/10 shadow-2xl">
             <h3 class="text-3xl font-black uppercase italic tracking-tighter mb-2">Partner Matching</h3>
             <p class="text-slate-400 text-sm mb-8 font-medium">Nhập mã phòng để kết nối với đối tác luyện nói.</p>
-            
             <div class="space-y-6">
                 <div class="relative group">
-                    <i class="fa-solid fa-hashtag absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 text-xl transition-all group-focus-within:scale-110"></i>
-                    <input type="text" id="peer-roomid" placeholder="Mã phòng (VD: 123, ABC...)" class="w-full pl-16 pr-6 py-6 rounded-[24px] bg-white/5 border border-white/10 text-xl font-bold tracking-widest focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none">
+                    <i class="fa-solid fa-hashtag absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 text-xl transition-all"></i>
+                    <input type="text" id="peer-roomid" placeholder="Mã phòng..." class="w-full pl-16 pr-6 py-6 rounded-[24px] bg-white/5 border border-white/10 text-xl font-bold tracking-widest focus:border-indigo-500/50 outline-none text-white">
                 </div>
-                
-                <button onclick="createOrJoinRoom()" class="btn-main w-full py-6 rounded-[24px] font-black tracking-[3px] text-sm shadow-indigo-500/20">
+                <button onclick="createOrJoinRoom()" class="btn-main w-full py-6 rounded-[24px] font-black tracking-[3px] text-sm shadow-indigo-500/20 text-white">
                     THAM GIA / TẠO PHÒNG GỌI
                 </button>
-                
-                <div id="peer-status" class="text-center text-[11px] font-black text-slate-500 uppercase tracking-[3px]">Sẵn sàng kết nối</div>
             </div>
         </div>
     </div>
 
-    <!-- 2. GIAO DIỆN ĐANG GỌI (IN-CALL) - ẨN MẶC ĐỊNH -->
+    <!-- 2. GIAO DIỆN ĐANG GỌI (IN-CALL) -->
     <div id="peer-call-container" class="hidden animate-in slide-in-from-bottom-10 duration-700">
-        <div class="max-w-5xl mx-auto glass p-8 rounded-[40px] border border-white/10 relative overflow-hidden">
-            <!-- Khung Video chính -->
-            <div class="w-full aspect-video bg-black rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
-                <!-- Video đối phương -->
-                <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+        <div class="max-w-5xl mx-auto glass p-4 sm:p-8 rounded-[40px] border border-white/10 relative">
+            
+            <!-- VIDEO WRAPPER: TẤT CẢ CON TRONG NÀY SẼ CÙNG PHÓNG TO -->
+            <div id="video-wrapper" class="w-full aspect-video bg-slate-950 rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
                 
-                <!-- Video của mình (nhỏ) -->
-                <div class="absolute bottom-6 right-6 w-32 sm:w-56 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 group">
+                <!-- LỚP 1: VIDEO ĐỐI PHƯƠNG -->
+                <video id="remote-video" autoplay playsinline class="w-full h-full object-cover z-0"></video>
+
+                <!-- LỚP 2: THÔNG BÁO ĐỐI PHƯƠNG TẮT CAM -->
+                <div id="remote-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900/95 z-[5]">
+                    <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-video-slash text-xl text-slate-500"></i>
+                    </div>
+                    <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Đối phương đã tắt Camera</p>
+                </div>
+
+                <!-- LỚP 3: BẢNG CHỜ (LOADING) -->
+                <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md z-10">
+                    <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <p class="mt-6 text-[10px] font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác...</p>
+                </div>
+
+                <!-- LỚP 4: NÚT PHÓNG TO (KHÔNG BỊ MẤT NỮA) -->
+                <button id="fullscreen-btn" onclick="toggleFullscreen()" class="absolute top-6 right-6 px-4 py-2.5 rounded-full pill-glass flex items-center justify-center z-30 group">
+                    <i id="fullscreen-icon" class="fa-solid fa-up-right-and-down-left-from-center text-white text-sm transition-transform group-hover:scale-110"></i>
+                </button>
+
+                <!-- LỚP 5: THÔNG TIN PHÒNG -->
+                <div class="absolute top-6 left-6 bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-[2px] z-30 flex items-center gap-2 text-white">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span id="partner-id-display">Phòng: ---</span>
+                </div>
+
+                <!-- LỚP 6: VIDEO NHỎ (PIP) -->
+                <div class="absolute bottom-6 right-6 w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 group">
                     <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span class="text-[8px] font-black uppercase tracking-widest">Bạn</span>
+                    <!-- Overlay mình tắt cam -->
+                    <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
+                        <i class="fa-solid fa-video-slash text-white/30 mb-1"></i>
+                        <span class="text-[7px] font-black uppercase text-white/50">Camera Off</span>
                     </div>
                 </div>
 
-                <!-- Controls Over Video -->
+                <!-- LỚP 7: THANH ĐIỀU KHIỂN (DƯỚI CÙNG) -->
                 <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 z-30">
-                    <button id="toggle-mic" onclick="toggleMic()" class="w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all">
-                        <i id="mic-icon" class="fa-solid fa-microphone text-lg text-white"></i>
+                    <button id="toggle-mic" onclick="toggleMic()" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white shadow-xl">
+                        <i id="mic-icon" class="fa-solid fa-microphone"></i>
                     </button>
-                    <button id="toggle-cam" onclick="toggleCamera()" class="w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all">
-                        <i id="cam-icon" class="fa-solid fa-video text-lg text-white"></i>
+                    <button id="toggle-cam" onclick="toggleCamera()" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white shadow-xl">
+                        <i id="cam-icon" class="fa-solid fa-video"></i>
                     </button>
-                    <button onclick="hangUp()" class="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 transition-all shadow-xl shadow-red-500/40">
-                        <i class="fa-solid fa-phone-slash text-lg text-white"></i>
+                    <button onclick="hangUp()" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-xl shadow-red-500/20">
+                        <i class="fa-solid fa-phone-slash"></i>
                     </button>
-                </div>
-
-                <!-- Chờ đối phương -->
-                <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm z-10">
-                    <div class="w-20 h-20 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <p class="mt-6 text-xs font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác tham gia...</p>
-                </div>
-                
-                <div class="absolute top-6 left-6 bg-black/40 px-5 py-2.5 rounded-full backdrop-blur-md border border-white/10 text-[10px] font-black uppercase tracking-[2px] z-30 flex items-center gap-2">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span id="partner-id-display">Phòng: ---</span>
                 </div>
             </div>
         </div>
@@ -379,17 +458,30 @@
 
 <script>
     // ------------------- FIREBASE & PEER CONFIG (Giữ nguyên) -------------------
+// --- CẤU HÌNH FIREBASE MỚI (PROJECT: fir-s-voice) ---
     const firebaseConfig = {
-        apiKey: "AIzaSyDWqkvbs8Ce5bhH3FYWgdRKQ0t3KXKQY3Q",
-        authDomain: "fir-s-votes-pro.firebaseapp.com",
-        databaseURL: "https://fir-s-votes-pro-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "fir-s-votes-pro",
-        storageBucket: "fir-s-votes-pro.firebasestorage.app",
-        appId: "1:581437404210:web:d1486f45a749a07d24f82b",
+        apiKey: "AIzaSyD-u81JJi5RPJuz3rR57JOIX5YPY6njFXM",
+        authDomain: "fir-s-voice.firebaseapp.com",
+        databaseURL: "https://fir-s-voice-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fir-s-voice",
+        storageBucket: "fir-s-voice.firebasestorage.app",
+        messagingSenderId: "489492600593",
+        appId: "1:489492600593:web:6cd45579babbd2e86c9eb0",
+        measurementId: "G-C52YPCYS45"
     };
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+    // Khởi tạo Firebase (Dùng bản Compat để giữ tính tương thích với code hiện tại)
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    
     const rdb = firebase.database();
     const storage = firebase.storage();
+    
+    // Nếu bạn muốn dùng Analytics (tùy chọn)
+    if (typeof firebase.analytics === "function") {
+        firebase.analytics();
+    }
 
     let mediaRecorder;
     let audioChunks = [];
@@ -400,6 +492,7 @@
     let recognition;
     let isMicOn = true;
     let isCamOn = true;
+    let isHost = false;
     let audioContext, analyser, dataArray, animationId; // Biến cho hiệu ứng mic
 
     const S_Notify = { 
@@ -514,8 +607,32 @@
     // --- 1. CHỨC NĂNG BẮT ĐẦU GHI ---
     startBtn.onclick = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { noiseSuppression: true, echoCancellation: true }
+            });
+
+            // --- BẮT ĐẦU BỘ LỌC BỔ SUNG ---
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaStreamSource(stream);
+            
+            // 1. Bộ lọc High-pass: Cắt bỏ các âm trầm dưới 100Hz (tiếng quạt, tiếng xe cộ)
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = "highpass";
+            filter.frequency.value = 100;
+
+            // 2. Bộ nén (Compressor): Làm cho giọng nói của bạn ổn định hơn, không bị lúc to lúc nhỏ
+            const compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-50, audioCtx.currentTime);
+            compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+            compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+            compressor.attack.setValueAtTime(0, audioCtx.currentTime);
+            compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+            source.connect(filter);
+            filter.connect(compressor);
+            // ---------------------------------
+
+            mediaRecorder = new MediaRecorder(stream); // Ghi âm từ stream gốc đã qua xử lý hệ thống
             audioChunks = [];
 
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
@@ -524,12 +641,11 @@
                 const blob = new Blob(audioChunks, { type: 'audio/wav' });
                 localAudioUrl = URL.createObjectURL(blob);
                 
-                // Cập nhật trạng thái nút sau khi ghi xong
                 playBtn.disabled = false;
                 statusLabel.innerHTML = '✅ Đã ghi xong. Bạn có thể nghe lại.';
                 startBtn.classList.remove('rec-pulse');
                 
-                // Tắt các track để giải phóng Micro
+                // Giải phóng mic
                 stream.getTracks().forEach(t => t.stop());
             };
 
@@ -608,7 +724,12 @@
 
     // --- LOGIC NHẤN NÚT BẮT ĐẦU ---
     startSpeechBtn.onclick = () => {
-        // Reset văn bản về trạng thái chờ
+        currentCursor = 0; // Reset con trỏ về từ đầu tiên
+        
+        // --- THÊM DÒNG NÀY ĐỂ RESET ĐIỂM VỀ 0% ---
+        document.getElementById('accuracy-score').innerText = '0%'; 
+        
+        // Reset toàn bộ màu sắc văn bản về trạng thái chờ (màu xám)
         document.querySelectorAll('#shadow-text-display span').forEach(el => {
             el.className = 'word-pending inline-block mx-0.5';
         });
@@ -661,35 +782,32 @@ let currentCursor = 0;
             interimTranscript += event.results[i][0].transcript;
         }
 
-        // 1. Lấy danh sách các từ bạn vừa nói (spokenWords)
         const spokenWords = interimTranscript.toLowerCase().trim().split(/\s+/);
         const originalSpans = document.querySelectorAll('#shadow-text-display span');
 
-        // 2. Duyệt qua từng từ bạn vừa nói để khớp với văn bản theo thứ tự
         spokenWords.forEach(spokenWord => {
+            // Loại bỏ dấu câu để so sánh chính xác hơn
             const cleanedSpoken = spokenWord.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
-            if (!cleanedSpoken) return;
+            if (cleanedSpoken.length <= 1 && !['a', 'i'].includes(cleanedSpoken)) return; // Bỏ qua các âm thanh vụn vặt
 
-            // Tìm từ khớp trong phạm vi "nhìn xa" 7 từ tính từ con trỏ hiện tại
-            // Việc nhìn xa giúp nếu bạn đọc sai/bỏ lỡ 1-2 từ, hệ thống vẫn bắt kịp từ tiếp theo
-            let lookAheadRange = 7; 
+            // --- CHIẾN THUẬT MỚI: CHỈ NHÌN TRONG PHẠM VI 4 TỪ KẾ TIẾP ---
+            let lookAheadRange = 4; 
             let foundMatch = false;
 
             for (let i = currentCursor; i < Math.min(currentCursor + lookAheadRange, originalSpans.length); i++) {
                 const targetWord = originalSpans[i].innerText.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
 
                 if (cleanedSpoken === targetWord) {
-                    // A. Đánh dấu những từ bạn đã TRẢI QUA nhưng không khớp là SAI (Màu đỏ)
+                    // Nếu khớp, đánh dấu từ này là ĐÚNG
+                    originalSpans[i].className = 'word-correct inline-block mx-0.5';
+                    
+                    // Chỉ đánh dấu SAI cho những từ bị bỏ lỡ ngay sát cạnh (tránh nhảy cóc)
                     for (let j = currentCursor; j < i; j++) {
                         if (!originalSpans[j].classList.contains('word-correct')) {
                             originalSpans[j].className = 'word-wrong inline-block mx-0.5';
                         }
                     }
 
-                    // B. Đánh dấu từ hiện tại là ĐÚNG (Màu xanh)
-                    originalSpans[i].className = 'word-correct inline-block mx-0.5';
-                    
-                    // C. Cập nhật con trỏ tiến về phía trước
                     currentCursor = i + 1;
                     foundMatch = true;
                     break; 
@@ -697,22 +815,16 @@ let currentCursor = 0;
             }
         });
 
-        // 3. Hiển thị text đang nghe
+        // Cập nhật kết quả hiển thị
         speechResult.innerHTML = `Đang nghe: <span class="text-indigo-400 italic">"${interimTranscript}"</span>`;
         
-        // 4. Tính điểm dựa trên số từ màu xanh
         const correctCount = document.querySelectorAll('.word-correct').length;
         const percent = Math.round((correctCount / originalSpans.length) * 100);
         document.getElementById('accuracy-score').innerHTML = `${percent}%`;
 
-        // 5. Cuộn văn bản theo con trỏ (tự động cuộn xuống khi đọc dài)
+        // Tự động cuộn màn hình theo từ đang đọc
         if (originalSpans[currentCursor]) {
             originalSpans[currentCursor].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-
-        if (percent >= 98) {
-            canvasConfetti({ particleCount: 100, spread: 70 });
-            recognition.stop();
         }
     };
 
@@ -732,93 +844,112 @@ let currentCursor = 0;
 
     // ================= 2. PEER LOGIC =================
     let peer, localStream, remoteCall;
-    let myPeerId = null;
+let myPeerId = null;
+let currentRoomRef = null; // Lưu ref để gỡ bỏ listener khi cần
 
-    async function createOrJoinRoom() {
-        const roomId = document.getElementById('peer-roomid').value.trim();
-        if (!roomId) return S_Notify.alert("Vui lòng nhập mã phòng!", "error");
+async function createOrJoinRoom() {
+    const roomId = document.getElementById('peer-roomid').value.trim();
+    if (!roomId) return S_Notify.alert("Vui lòng nhập mã phòng!", "error");
 
-        try {
-            // 1. Lấy quyền Camera/Mic
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: true, 
-                video: { width: 1280, height: 720 } 
-            });
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }, 
+            video: { width: 1280, height: 720 } 
+        });
 
-            // Cập nhật UI
-            document.getElementById('peer-lobby-container').classList.add('hidden');
-            document.getElementById('peer-call-container').classList.remove('hidden');
-            document.getElementById('local-video').srcObject = localStream;
-            document.getElementById('partner-id-display').innerText = `Đang kết nối phòng: ${roomId}`;
-            
-            // Kích hoạt hiệu ứng Mic glow
-            startVolumeMeter(localStream);
+        document.getElementById('peer-lobby-container').classList.add('hidden');
+        document.getElementById('peer-call-container').classList.remove('hidden');
+        document.getElementById('local-video').srcObject = localStream;
+        
+        startVolumeMeter(localStream);
 
-            // 2. Khởi tạo Peer với ID ngẫu nhiên (để tránh trùng lặp)
-            peer = new Peer();
+        peer = new Peer();
 
-            peer.on('open', (id) => {
-                myPeerId = id;
-                console.log("My Peer ID:", myPeerId);
-                handleRoomCoordination(roomId);
-            });
+        peer.on('open', (id) => {
+            myPeerId = id;
+            handleRoomCoordination(roomId);
+        });
 
-            // 3. Xử lý khi có cuộc gọi đến (Dành cho Chủ phòng)
-            peer.on('call', call => {
-                remoteCall = call;
-                call.answer(localStream);
-                call.on('stream', remoteStream => {
-                    const remoteVideo = document.getElementById('remote-video');
-                    remoteVideo.srcObject = remoteStream;
-                    document.getElementById('video-placeholder').classList.add('hidden');
-                });
-                S_Notify.alert("Đã kết nối với đối tác!");
-            });
+        // Khi có người gọi đến (Dành cho Chủ phòng)
+        peer.on('call', call => {
+            remoteCall = call;
+            call.answer(localStream);
+            setupCallListeners(call);
+        });
 
-        } catch (e) {
-            console.error(e);
-            S_Notify.alert("Lỗi truy cập thiết bị hoặc kết nối!", "error");
-        }
+    } catch (e) {
+        S_Notify.alert("Lỗi kết nối thiết bị!", "error");
     }
+}
 
-    async function handleRoomCoordination(roomId) {
-    const roomRef = rdb.ref(`calls/${roomId}`);
+async function handleRoomCoordination(roomId) {
+    currentRoomRef = rdb.ref(`calls/${roomId}`);
     
-    // Kiểm tra xem phòng đã có ai chưa
-    const snapshot = await roomRef.once('value');
+    const snapshot = await currentRoomRef.once('value');
     const roomData = snapshot.val();
 
-    if (!roomData) {
-        // TRƯỜNG HỢP 1: Bạn là người đầu tiên (Chủ phòng)
-        await roomRef.set({
-            hostId: myPeerId,
-            status: 'waiting',
-            createdAt: Date.now()
-        });
-        
-        // Khi bạn tắt trình duyệt, tự động xóa phòng
-        roomRef.onDisconnect().remove();
-        
-        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Đang chờ...)`;
-    } else {
-        // TRƯỜNG HỢP 2: Đã có người trong phòng (Bạn là Khách)
-        const hostId = roomData.hostId;
-        
-        if (hostId === myPeerId) return; // Tránh tự gọi chính mình
+    // LẮNG NGHE FIREBASE: Nếu phòng bị xóa bởi người kia
+    currentRoomRef.on('value', (snap) => {
+        if (!snap.exists() && remoteCall) {
+            // Nếu cuộc gọi đang diễn ra mà dữ liệu phòng biến mất -> Bên kia đã Hang Up
+            S_Notify.alert("Đối phương đã thoát cuộc gọi", "error");
+            hangUp(false); // Gọi hangUp nhưng không xóa DB nữa (vì đã bị xóa rồi)
+        }
+    });
 
-        // Thực hiện cuộc gọi tới Chủ phòng
+    if (!roomData) {
+        isHost = true; // Mình là người tạo phòng
+        await currentRoomRef.set({ 
+            hostId: myPeerId, 
+            hostCamOn: true, // Mặc định cam bật
+            guestCamOn: true, 
+            status: 'waiting' 
+        });
+        currentRoomRef.onDisconnect().remove();
+        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Chờ...)`;
+    } else {
+        isHost = false; // Mình là khách
+        const hostId = roomData.hostId;
         const call = peer.call(hostId, localStream);
         remoteCall = call;
-
-        call.on('stream', remoteStream => {
-            const remoteVideo = document.getElementById('remote-video');
-            remoteVideo.srcObject = remoteStream;
-            document.getElementById('video-placeholder').classList.add('hidden');
-        });
-
+        setupCallListeners(call);
         document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Đã kết nối)`;
-        S_Notify.alert("Đang gọi cho chủ phòng...");
     }
+
+    currentRoomRef.on('value', (snap) => {
+        const data = snap.val();
+        if (!data) return;
+
+        // Nếu mình là Host, hãy xem guestCamOn. Nếu mình là Guest, hãy xem hostCamOn
+        const partnerCamStatus = isHost ? data.guestCamOn : data.hostCamOn;
+        const remoteOverlay = document.getElementById('remote-cam-off-overlay');
+        
+        if (partnerCamStatus === false) {
+            remoteOverlay.classList.remove('hidden');
+        } else {
+            remoteOverlay.classList.add('hidden');
+        }
+    });
+}
+
+function setupCallListeners(call) {
+    call.on('stream', remoteStream => {
+        const remoteVideo = document.getElementById('remote-video');
+        remoteVideo.srcObject = remoteStream;
+        
+        // Ẩn bảng chờ ngay khi nhận được hình ảnh đối phương
+        const placeholder = document.getElementById('video-placeholder');
+        if (placeholder) placeholder.classList.remove('hidden');
+    });
+
+    call.on('close', () => {
+        S_Notify.alert("Đối phương đã thoát", "error");
+        hangUp(false);
+    });
 }
 
 function toggleMic() {
@@ -845,30 +976,48 @@ function toggleCamera() {
     
     const btn = document.getElementById('toggle-cam');
     const icon = document.getElementById('cam-icon');
+    const localOverlay = document.getElementById('local-cam-off-overlay');
     
+    // 1. Cập nhật giao diện của mình
     if (isCamOn) {
-        btn.className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
+        btn.className = 'w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all shadow-xl';
         icon.className = 'fa-solid fa-video text-lg text-white';
+        localOverlay.classList.add('hidden');
     } else {
-        btn.className = 'w-14 h-14 rounded-full bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-500/40';
+        btn.className = 'w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-red-500 flex items-center justify-center transition-all shadow-lg shadow-red-500/40';
         icon.className = 'fa-solid fa-video-slash text-lg text-white';
+        localOverlay.classList.remove('hidden');
+    }
+
+    // 2. Cập nhật lên Firebase để đối phương biết
+    if (currentRoomRef) {
+        const updateData = {};
+        if (isHost) updateData.hostCamOn = isCamOn;
+        else updateData.guestCamOn = isCamOn;
+        currentRoomRef.update(updateData);
     }
 }
 
 
 // --- TRONG HÀM hangUp() ---
-function hangUp() {
+function hangUp(shouldRemoveDb = true) {
     const roomId = document.getElementById('peer-roomid').value.trim();
-    if (roomId) {
-        rdb.ref(`calls/${roomId}`).remove(); // Xóa phòng trên Database
+    
+    // Ngắt lắng nghe Firebase để tránh thông báo thừa
+    if (currentRoomRef) {
+        currentRoomRef.off(); 
+        if (shouldRemoveDb) currentRoomRef.remove();
     }
 
     if (remoteCall) remoteCall.close();
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     if (peer) peer.destroy();
+    
+    // Dọn dẹp hiệu ứng âm thanh
     if (animationId) cancelAnimationFrame(animationId);
     if (audioContext) audioContext.close();
 
+    // Reset UI
     document.getElementById('peer-call-container').classList.add('hidden');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
     document.getElementById('remote-video').srcObject = null;
@@ -876,7 +1025,9 @@ function hangUp() {
     document.getElementById('video-placeholder').classList.remove('hidden');
     
     isMicOn = true; isCamOn = true;
-    S_Notify.alert("Đã kết thúc cuộc gọi");
+    remoteCall = null;
+
+    if (shouldRemoveDb) S_Notify.alert("Bạn đã rời cuộc gọi");
 }
 
     // ================= 3. COMMUNITY LOGIC =================
@@ -886,7 +1037,17 @@ function hangUp() {
     const previewAudio = document.getElementById('post-audio-preview');
 
     recStart.onclick = async() => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioConstraints = {
+            audio: {
+                echoCancellation: true,      // Khử tiếng vang
+                noiseSuppression: true,      // Lọc tiếng ồn nền (Quạt, điều hòa...)
+                autoGainControl: true,       // Tự động điều chỉnh độ lớn âm thanh
+                channelCount: 1              // Chuyển về Mono (đơn kênh) giúp AI tập trung hơn
+            }
+        };
+
+        // Ví dụ áp dụng cho nút Start Recording của bạn:
+        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
         communityRecorder = new MediaRecorder(stream);
         communityChunks=[];
         communityRecorder.ondataavailable = e => communityChunks.push(e.data);
@@ -1017,6 +1178,51 @@ function hangUp() {
         animationId = requestAnimationFrame(update);
     }
     update();
+}
+
+async function toggleFullscreen() {
+    const wrapper = document.getElementById('video-wrapper');
+    
+    if (!document.fullscreenElement) {
+        try {
+            if (wrapper.requestFullscreen) {
+                await wrapper.requestFullscreen();
+            } else if (wrapper.webkitRequestFullscreen) {
+                await wrapper.webkitRequestFullscreen();
+            }
+            
+            // Xoay ngang màn hình cho mobile
+            if (window.innerWidth < 1024 && screen.orientation && screen.orientation.lock) {
+                await screen.orientation.lock('landscape').catch(() => {});
+            }
+        } catch (err) {
+            S_Notify.alert("Trình duyệt từ chối phóng to", "error");
+        }
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// LẮNG NGHE SỰ KIỆN TOÀN MÀN HÌNH ĐỂ ĐỔI ICON
+document.addEventListener('fullscreenchange', handleFullscreenUI);
+document.addEventListener('webkitfullscreenchange', handleFullscreenUI);
+
+function handleFullscreenUI() {
+    const icon = document.getElementById('fullscreen-icon');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        // ĐANG Ở CHẾ ĐỘ TOÀN MÀN HÌNH -> Đổi sang icon Thu nhỏ
+        icon.classList.remove('fa-up-right-and-down-left-from-center');
+        icon.classList.add('fa-down-left-and-up-right-to-center');
+    } else {
+        // ĐANG Ở CHẾ ĐỘ THƯỜNG -> Đổi sang icon Phóng to
+        icon.classList.remove('fa-down-left-and-up-right-to-center');
+        icon.classList.add('fa-up-right-and-down-left-from-center');
+        
+        // Mở khóa xoay màn hình khi thoát
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+    }
 }
 
 </script>
