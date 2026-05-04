@@ -334,6 +334,17 @@ video {
     }
 }
 
+/* Mặc định PC: ngang 16:9 */
+#local-video-container {
+    aspect-ratio: 16 / 9;
+}
+/* Mobile: dọc 9:16 */
+@media (max-width: 768px) {
+    #local-video-container.local-mobile {
+        aspect-ratio: 9 / 16;
+    }
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -529,8 +540,8 @@ video {
                     <span id="partner-status-display">Trạng thái: ---</span>
                 </div>
 
-                <div class="absolute bottom-6 right-6 w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
-                    <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
+                <div id="local-video-container" class="absolute bottom-6 right-6 w-28 sm:w-48 bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
+                    <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover" style="transform: scaleX(-1);"></video>
                     <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
                         <i class="fa-solid fa-video-slash text-white/30"></i>
                     </div>
@@ -1001,18 +1012,14 @@ let currentCursor = 0;
 
     async function startMatching(type) {
     roomType = type;
-    
-    // --- ÉP TRẠNG THÁI VỀ BẬT KHI BẮT ĐẦU ---
     isMicOn = true;
     isCamOn = true;
 
-    // Cập nhật giao diện nút Mic ngay lập tức
     const micBtn = document.getElementById('toggle-mic');
     const micIcon = document.getElementById('mic-icon');
     micBtn.classList.remove('bg-red-500');
     micIcon.className = 'fa-solid fa-microphone';
 
-    // Cập nhật giao diện nút Cam ngay lập tức
     const camBtn = document.getElementById('toggle-cam');
     const camIcon = document.getElementById('cam-icon');
     camBtn.classList.remove('bg-red-500');
@@ -1023,16 +1030,17 @@ let currentCursor = 0;
     if (type === 'private' && !privateId) return S_Notify.alert("Nhập mã phòng riêng!", "error");
 
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { echoCancellation: true, noiseSuppression: true }, 
-            video: { width: 1280, height: 720 } 
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true },
+            video: { width: 1280, height: 720 }
         });
 
         document.getElementById('peer-lobby-container').classList.add('hidden');
         document.getElementById('peer-call-container').classList.remove('hidden');
+        
+        // 👉 Thêm class tỉ lệ video (dọc cho mobile, ngang cho PC)
         const wrapper = document.getElementById('video-wrapper');
-        // Quan trọng: xóa class aspect-video mặc định của Tailwind
-        wrapper.classList.remove('aspect-video');
+        wrapper.classList.remove('aspect-video'); // bỏ class tailwind mặc định
         if (getDeviceType() === 'mobile') {
             wrapper.classList.add('mobile-call');
             wrapper.classList.remove('pc-call');
@@ -1040,26 +1048,26 @@ let currentCursor = 0;
             wrapper.classList.add('pc-call');
             wrapper.classList.remove('mobile-call');
         }
-        document.getElementById('local-video').srcObject = localStream;
         
+        document.getElementById('local-video').srcObject = localStream;
         document.getElementById('video-placeholder').classList.remove('hidden');
         document.getElementById('remote-cam-off-overlay').classList.add('hidden');
         
         if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
 
+        // 👉 PeerJS KHÔNG cấu hình ICE servers (dùng mặc định)
         peer = new Peer();
+        
         peer.on('open', (id) => {
             myPeerId = id;
             if (type === 'random') findRandomMatch();
             else enterPrivateRoom(privateId);
         });
-
         peer.on('call', call => {
             remoteCall = call;
             call.answer(localStream);
             setupCallListeners(call);
         });
-
         peer.on('error', (err) => { leaveMatch(); });
     } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
 }
@@ -1068,7 +1076,7 @@ async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
     if (!myPeerId) { setTimeout(findRandomMatch, 1000); return; }
 
-    // Xóa những phòng "ma" đã quá 30 giây mà không có ai vào
+    // Xóa phòng chờ quá cũ (30 giây)
     const now = Date.now();
     const allRooms = await roomsRef.once('value');
     allRooms.forEach(snap => {
@@ -1081,30 +1089,31 @@ async function findRandomMatch() {
     const rooms = snapshot.val();
 
     if (rooms) {
+        // Có phòng chờ -> vào phòng đầu tiên
         currentRoomId = Object.keys(rooms)[0];
         const targetHostId = rooms[currentRoomId].hostId;
-
         if (targetHostId === myPeerId) {
             await roomsRef.child(currentRoomId).remove();
-            findRandomMatch(); return;
+            findRandomMatch();
+            return;
         }
-
         isHost = false;
-        await roomsRef.child(currentRoomId).update({ 
-            status: 'occupied', 
+        await roomsRef.child(currentRoomId).update({
+            status: 'occupied',
             guestId: myPeerId,
-            guestDevice: getDeviceType() 
+            guestDevice: getDeviceType()
         });
-        
-        // Thực hiện gọi
         remoteCall = peer.call(targetHostId, localStream);
         setupCallListeners(remoteCall);
     } else {
+        // Không có phòng -> tạo phòng mới
         isHost = true;
         currentRoomId = myPeerId;
-        await roomsRef.child(currentRoomId).set({ 
-            hostId: myPeerId, status: 'waiting', 
-            hostDevice: getDeviceType(), createdAt: Date.now() 
+        await roomsRef.child(currentRoomId).set({
+            hostId: myPeerId,
+            status: 'waiting',
+            hostDevice: getDeviceType(),
+            createdAt: Date.now()
         });
         roomsRef.child(currentRoomId).onDisconnect().remove();
     }
@@ -1146,26 +1155,62 @@ async function enterPrivateRoom(roomId) {
 
 function observeRoom(ref) {
     ref.on('value', (snap) => {
-        const data = snap.val(); 
+        const data = snap.val();
         const placeholder = document.getElementById('video-placeholder');
         const waitingMsg = document.getElementById('waiting-msg');
+        const statusSpan = document.getElementById('partner-status-display');
 
-        if (!data) { leaveMatch(); return; }
+        if (!data) {
+            // Phòng bị xóa (host thoát đột ngột)
+            statusSpan.innerText = 'Trạng thái: Mất kết nối';
+            waitingMsg.innerText = "Đối tác đã rời khỏi phòng";
+            placeholder.classList.remove('hidden');
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteVideo) remoteVideo.srcObject = null;
+            if (!isHost) {
+                // Nếu là guest, chuyển sang host để tạo phòng mới
+                isHost = true;
+                isCallConnected = false;
+                const path = roomType === 'random' ? 'random' : 'private';
+                const newRoomRef = rdb.ref(`peer_rooms/${path}/${myPeerId}`);
+                newRoomRef.set({
+                    hostId: myPeerId,
+                    status: 'waiting',
+                    hostDevice: getDeviceType(),
+                    createdAt: Date.now()
+                });
+                newRoomRef.onDisconnect().remove();
+                currentRoomId = myPeerId;
+                observeRoom(newRoomRef);
+            } else {
+                leaveMatch();
+            }
+            return;
+        }
 
         if (data.status === 'waiting') {
+            statusSpan.innerText = 'Trạng thái: Đang chờ đối tác...';
             if (!isCallConnected) {
                 waitingMsg.innerText = "Đang tìm kiếm đối tác phù hợp...";
             } else {
                 waitingMsg.innerText = "Đối tác đã rời đi. Đang chờ người mới...";
-                // Quan trọng: Nếu đối tác rời đi, ta tự động làm Host để chờ người tiếp theo
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) remoteVideo.srcObject = null;
                 isCallConnected = false;
-                isHost = true; 
+                isHost = true;
+                const path = roomType === 'random' ? 'random' : 'private';
+                if (currentRoomId) {
+                    rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update({
+                        status: 'waiting',
+                        guestId: null,
+                        guestCamOn: true,
+                        guestDevice: null
+                    });
+                }
             }
             placeholder.classList.remove('hidden');
-        }
-        else if (data.status === 'occupied') {
-            // Khi trạng thái là occupied, chuẩn bị kết nối
-            // Placeholder sẽ ẩn khi nhận được stream (trong setupCallListeners)
+        } else if (data.status === 'occupied') {
+            // Placeholder sẽ được ẩn khi stream về trong setupCallListeners
         }
 
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
@@ -1175,22 +1220,22 @@ function observeRoom(ref) {
 
 function setupCallListeners(call) {
     call.on('stream', stream => {
-        isCallConnected = true; // Đánh dấu đã kết nối thành công
+        isCallConnected = true;
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) {
             remoteVideo.srcObject = stream;
             remoteVideo.onloadedmetadata = () => {
                 document.getElementById('video-placeholder').classList.add('hidden');
+                document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
             };
         }
     });
-    
-    // Sự kiện khi Peer ngắt kết nối (do mạng yếu hoặc thoát)
     call.on('close', () => {
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) remoteVideo.srcObject = null;
         document.getElementById('video-placeholder').classList.remove('hidden');
         document.getElementById('waiting-msg').innerText = "Mất kết nối. Đang chờ thử lại...";
+        document.getElementById('partner-status-display').innerText = 'Trạng thái: Mất kết nối';
     });
 }
 
@@ -1246,6 +1291,7 @@ function leaveMatch() {
     document.getElementById('peer-call-container').classList.add('hidden');
     document.getElementById('video-wrapper').classList.remove('mobile-call', 'pc-call');
     document.getElementById('video-wrapper').classList.add('aspect-video');
+    document.getElementById('local-video-container').classList.remove('local-mobile');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
     document.getElementById('remote-video').srcObject = null;
 
