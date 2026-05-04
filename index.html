@@ -287,55 +287,43 @@ video {
     background: #000;
 }
 
-/* Tối ưu hóa giao diện gọi cho Mobile */
 @media (max-width: 768px) {
-    /* Đưa nút phóng to xuống góc dưới bên trái để không bị nhãn đối tác che */
+    /* 1. Cho khung video cao lên để không gian rộng hơn */
+    #video-wrapper:not(.ios-fake-fullscreen) {
+        aspect-ratio: 9/16 !important; /* Tỉ lệ dọc giúp nút nằm dưới cằm, không che mặt */
+        max-height: 70vh;
+    }
+
+    /* 2. Đẩy nút phóng to sang bên PHẢI (như bạn yêu cầu) */
     #fullscreen-btn {
-        top: auto !important;
-        right: auto !important;
-        bottom: 85px !important; /* Nằm trên hàng nút điều khiển một chút */
-        left: 15px !important;
-        width: 40px !important;
-        height: 40px !important;
+        top: 15px !important;
+        right: 15px !important;
+        left: auto !important;
+        width: 38px !important;
+        height: 38px !important;
+        z-index: 50 !important;
     }
 
-    /* 2. Thu nhỏ các nút điều khiển chính */
+    /* 3. Hạ thấp các nút Mic/Cam/X xuống sát đáy nhất có thể */
     #video-wrapper .absolute.bottom-8 {
-        bottom: 1.5rem !important; /* Đẩy sát xuống đáy hơn */
-        gap: 1rem !important;
+        bottom: 10px !important;
+        gap: 15px !important;
     }
 
-    #video-wrapper .absolute.bottom-8 button {
-        width: 2.75rem !important; /* Thu nhỏ nút từ w-12 xuống còn khoảng w-11 */
-        height: 2.75rem !important;
-        font-size: 0.875rem;
+    /* 4. Thu nhỏ khung video của mình và đặt phía trên nút điều khiển */
+    #video-wrapper .absolute.bottom-6.right-6 {
+        bottom: 75px !important;
+        right: 10px !important;
+        width: 85px !important;
+        height: auto !important;
     }
 
-    /* 3. Thu nhỏ khung video nhỏ của mình (Local Video) */
-    /* Thu nhỏ nhãn trạng thái đối tác một chút */
+    /* 5. Nhãn trạng thái thu nhỏ lại cho gọn */
     #video-wrapper .absolute.top-6.left-6 {
         top: 15px !important;
-        left: 15px !important;
-        padding: 4px 10px !important;
+        left: 10px !important;
+        max-width: 120px;
         font-size: 8px !important;
-    }
-
-    /* 4. Thu nhỏ các nhãn trạng thái và nút phóng to */
-    #video-wrapper .absolute.top-6 {
-        top: 1rem !important;
-        left: 1rem !important;
-    }
-    
-    #fullscreen-btn {
-        top: 1rem !important;
-        right: 1rem !important;
-        width: 2.5rem !important;
-        height: 2.5rem !important;
-    }
-
-    #room-id-badge {
-        top: 4.5rem !important;
-        left: 1rem !important;
     }
 }
 
@@ -1065,12 +1053,16 @@ let currentCursor = 0;
 
 async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
-    
-    // 1. Kiểm tra xem Peer ID của mình đã sẵn sàng chưa, nếu chưa đợi 1s rồi thử lại
-    if (!myPeerId) {
-        setTimeout(findRandomMatch, 1000);
-        return;
-    }
+    if (!myPeerId) { setTimeout(findRandomMatch, 1000); return; }
+
+    // Xóa những phòng "ma" đã quá 30 giây mà không có ai vào
+    const now = Date.now();
+    const allRooms = await roomsRef.once('value');
+    allRooms.forEach(snap => {
+        if (snap.val().createdAt && (now - snap.val().createdAt > 30000) && snap.val().status === 'waiting') {
+            snap.ref.remove();
+        }
+    });
 
     const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
     const rooms = snapshot.val();
@@ -1079,11 +1071,9 @@ async function findRandomMatch() {
         currentRoomId = Object.keys(rooms)[0];
         const targetHostId = rooms[currentRoomId].hostId;
 
-        // Tránh tự gọi chính mình nếu bị kẹt phòng cũ
         if (targetHostId === myPeerId) {
             await roomsRef.child(currentRoomId).remove();
-            findRandomMatch();
-            return;
+            findRandomMatch(); return;
         }
 
         isHost = false;
@@ -1093,18 +1083,15 @@ async function findRandomMatch() {
             guestDevice: getDeviceType() 
         });
         
-        // Gọi cho Host
+        // Thực hiện gọi
         remoteCall = peer.call(targetHostId, localStream);
         setupCallListeners(remoteCall);
     } else {
-        // Nếu không có phòng nào chờ, mình làm Host
         isHost = true;
         currentRoomId = myPeerId;
         await roomsRef.child(currentRoomId).set({ 
-            hostId: myPeerId, 
-            status: 'waiting', 
-            hostDevice: getDeviceType(),
-            createdAt: Date.now() 
+            hostId: myPeerId, status: 'waiting', 
+            hostDevice: getDeviceType(), createdAt: Date.now() 
         });
         roomsRef.child(currentRoomId).onDisconnect().remove();
     }
@@ -1153,16 +1140,16 @@ function observeRoom(ref) {
         if (!data) { leaveMatch(); return; }
 
         if (data.status === 'waiting') {
-            // Nếu chưa từng kết nối (isCallConnected = false) thì hiện "Đang tìm"
-            // Nếu đã kết nối rồi mà đối phương thoát thì mới hiện "Đã rời đi"
             if (!isCallConnected) {
                 waitingMsg.innerText = "Đang tìm kiếm đối tác phù hợp...";
             } else {
                 waitingMsg.innerText = "Đối tác đã rời đi. Đang chờ người mới...";
-                if (remoteVideo.srcObject) remoteVideo.srcObject = null;
+                // Quan trọng: Nếu đối tác rời đi, ta tự động làm Host để chờ người tiếp theo
+                isCallConnected = false;
+                isHost = true; 
             }
             placeholder.classList.remove('hidden');
-        } 
+        }
         else if (data.status === 'occupied') {
             // Khi trạng thái là occupied, chuẩn bị kết nối
             // Placeholder sẽ ẩn khi nhận được stream (trong setupCallListeners)
