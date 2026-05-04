@@ -668,8 +668,15 @@ video {
     };
 
     // ================= 1. SHADOWING LOGIC =================
-    async function loadShadowingList() {
-        const snapshot = await rdb.ref('s_talk/shadowing').once('value');
+    let shadowingUnsubscribe = null;
+
+async function loadShadowingList() {
+    // Nếu đã có listener thì không đăng ký lại (hoặc hủy cũ)
+    if (shadowingUnsubscribe) {
+        shadowingUnsubscribe();
+    }
+    const shadowingRef = rdb.ref('s_talk/shadowing');
+    shadowingUnsubscribe = shadowingRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         const container = document.getElementById('shadow-list');
         container.innerHTML = '';
@@ -678,15 +685,25 @@ video {
             div.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group';
             div.innerHTML = `
                 <div class="flex justify-between items-start mb-1">
-                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${item.title}</p>
+                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${escapeHtml(item.title)}</p>
                     <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-indigo-500 transition-all"></i>
                 </div>
-                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${item.text.substring(0,40)}...</p>
+                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${escapeHtml(item.text.substring(0,40))}...</p>
             `;
             div.onclick = () => loadShadowingItem(id, item);
             container.appendChild(div);
         }
-    }
+    });
+}
+// Thêm hàm escapeHtml để tránh XSS (nếu cần)
+function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
 
     function loadShadowingItem(id, item) {
         currentShadowingId = id;
@@ -1414,7 +1431,14 @@ function leaveMatch() {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             if(btn.dataset.tab === 'community') loadCommunityPosts();
-            if(btn.dataset.tab === 'shadowing') loadShadowingList();
+            if(btn.dataset.tab === 'shadowing') {
+                // Hủy listener cũ trước khi tạo mới
+                if (shadowingUnsubscribe) {
+                    shadowingUnsubscribe();
+                    shadowingUnsubscribe = null;
+                }
+                loadShadowingList();
+            }
         };
     });
 
