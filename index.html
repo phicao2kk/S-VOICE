@@ -195,16 +195,15 @@
 /* Ép toàn màn hình tuyệt đối cho iPhone */
 .ios-fake-fullscreen {
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    height: -webkit-fill-available !important; /* Fix lỗi khoảng trắng Safari */
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
     z-index: 99999 !important;
     background: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 /* Ẩn thanh Navbar khi đang phóng to trên Mobile */
@@ -214,9 +213,17 @@ body.is-fullscreen nav {
 
 /* Điều chỉnh tỷ lệ video khi ở chế độ giả lập */
 .ios-fake-fullscreen video#remote-video {
-    height: 100% !important;
     width: 100% !important;
-    object-fit: contain !important; /* Giữ nguyên tỷ lệ, không bị méo */
+    height: 100% !important;
+    object-fit: contain !important; 
+    background: #000;
+}
+
+@media screen and (orientation: landscape) {
+    .ios-fake-fullscreen #room-id-badge,
+    .ios-fake-fullscreen nav { 
+        display: none !important; 
+    }
 }
 
 /* Chế độ Mobile gọi Mobile: Video dọc sẽ tràn màn hình dọc */
@@ -237,6 +244,18 @@ body.is-fullscreen nav {
     width: 100vw !important;
 }
 
+/* Thêm vào thẻ <style> */
+video {
+    -webkit-transform: translateZ(0); /* Ép render GPU để mượt hơn trên mobile */
+    touch-action: manipulation;
+}
+
+#video-wrapper {
+    /* Ngăn chặn việc kéo thả gây giật lag trên Safari mobile */
+    overflow: hidden;
+    position: relative;
+    background: #000;
+}
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -401,7 +420,7 @@ body.is-fullscreen nav {
         <div class="max-w-5xl mx-auto glass p-4 sm:p-8 rounded-[40px] border border-white/10 relative">
             <div id="video-wrapper" class="w-full aspect-video bg-slate-950 rounded-[32px] overflow-hidden relative ring-4 ring-white/5 shadow-2xl">
                 
-                <video id="remote-video" autoplay playsinline class="w-full h-full object-cover z-0"></video>
+                <video id="remote-video" autoplay playsinline webkit-playsinline class="w-full h-full object-cover z-0"></video>
 
                 <!-- HIỂN THỊ MÃ PHÒNG (MỚI) -->
                 <div id="room-id-badge" class="hidden absolute top-20 left-6 bg-emerald-500/20 border border-emerald-500/30 px-3 py-2 rounded-2xl backdrop-blur-md z-30 flex items-center gap-3">
@@ -437,7 +456,7 @@ body.is-fullscreen nav {
                 </div>
 
                 <div class="absolute bottom-6 right-6 w-28 sm:w-48 aspect-video bg-slate-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
-                    <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
+                    <video id="local-video" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover scale-x-[-1]"></video>
                     <div id="local-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm">
                         <i class="fa-solid fa-video-slash text-white/30"></i>
                     </div>
@@ -1005,7 +1024,7 @@ async function enterPrivateRoom(roomId) {
             status: 'occupied', 
             guestId: myPeerId,
             guestCamOn: true,
-            guestDevice: getDeviceType() // THÊM DÒNG NÀY
+            guestDevice: getDeviceType() // Gửi cái này lên để bên kia thấy
         });
         remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
     } else {
@@ -1015,7 +1034,7 @@ async function enterPrivateRoom(roomId) {
             status: 'waiting', 
             hostCamOn: true, 
             guestCamOn: true,
-            hostDevice: getDeviceType() // THÊM DÒNG NÀY
+            hostDevice: getDeviceType() // Gửi cái này lên
         });
         roomRef.onDisconnect().remove();
     }
@@ -1031,32 +1050,49 @@ async function enterPrivateRoom(roomId) {
 
     function observeRoom(ref) {
     ref.on('value', (snap) => {
-        const data = snap.val(); if (!data) return;
-        if (data.status !== 'occupied') return;
+        const data = snap.val(); 
+        if (!data) {
+            // Nếu phòng bị xóa đột ngột (Host thoát)
+            leaveMatch();
+            return;
+        }
 
-        const myDevice = getDeviceType();
-        const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
-        const wrapper = document.getElementById('video-wrapper');
+        const placeholder = document.getElementById('video-placeholder');
+        const statusDisplay = document.getElementById('partner-status-display');
+        const remoteVideo = document.getElementById('remote-video');
 
-        // CHỈ XỬ LÝ NẾU MÌNH ĐANG DÙNG MOBILE
-        if (myDevice === 'mobile') {
-            if (partnerDevice === 'pc') {
-                // ĐỐI PHƯƠNG DÙNG PC -> XOAY NGANG ĐỂ XEM RÕ
-                S_Notify.alert("Đối tác dùng PC - Hãy xoay ngang máy để nhìn rõ!", "success");
-                // Tự động kích hoạt fullscreen/giả lập nếu cần
-                if (!wrapper.classList.contains('ios-fake-fullscreen') && !document.fullscreenElement) {
-                    toggleFullscreen(); 
+        if (data.status === 'waiting') {
+            // --- ĐỐI PHƯƠNG ĐÃ THOÁT: HIỆN LẠI MÀN HÌNH CHỜ ---
+            placeholder.classList.remove('hidden');
+            if (remoteVideo) remoteVideo.srcObject = null;
+            statusDisplay.innerText = "Trạng thái: Đang chờ...";
+            
+            // Nếu mình là khách mà host thoát (phòng về waiting), khách nên thoát ra lobby
+            if (!isHost) {
+                S_Notify.alert("Chủ phòng đã rời đi");
+                leaveMatch();
+            }
+        } else if (data.status === 'occupied') {
+            // --- ĐÃ CÓ ĐỐI TÁC KẾT NỐI ---
+            placeholder.classList.add('hidden'); // Ẩn spinner
+            
+            const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
+            const myDevice = getDeviceType();
+
+            // Cập nhật trạng thái hiển thị
+            statusDisplay.innerText = `Đối tác: ${partnerDevice ? partnerDevice.toUpperCase() : 'Đang kết nối...'}`;
+
+            // Logic thông báo xoay màn hình
+            if (myDevice === 'mobile' && partnerDevice === 'pc') {
+                if (!document.body.classList.contains('is-fullscreen')) {
+                    S_Notify.alert("Đối tác dùng PC - Hãy bấm Phóng to và Xoay ngang!");
                 }
-            } else {
-                // ĐỐI PHƯƠNG CŨNG DÙNG MOBILE -> ĐỂ DỌC TỰ NHIÊN
-                S_Notify.alert("Đối tác dùng Mobile - Xem chế độ dọc", "success");
-                // Thoát fullscreen nếu đang lỡ bật
-                if (document.fullscreenElement || wrapper.classList.contains('ios-fake-fullscreen')) {
-                    toggleFullscreen(); 
-                }
-                wrapper.classList.add('mobile-to-mobile');
             }
         }
+
+        // Kiểm tra Camera đối phương
+        const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
+        document.getElementById('remote-cam-off-overlay').classList.toggle('hidden', partnerCam !== false);
     });
 }
 
@@ -1104,45 +1140,42 @@ function leaveMatch() {
     const path = roomType === 'random' ? 'random' : 'private';
     if (currentRoomId) {
         const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
-        ref.off(); 
-        if (isHost) ref.remove();
-        else {
-            ref.update({ status: 'waiting', guestId: null, guestCamOn: true });
+        ref.off(); // Quan trọng: Ngừng nghe Firebase trước khi dọn dẹp
+
+        if (isHost) {
+            ref.remove(); // Host thoát thì xóa phòng
+        } else {
+            // Guest thoát thì trả phòng về trạng thái waiting
+            ref.update({ 
+                status: 'waiting', 
+                guestId: null,
+                guestCamOn: true,
+                guestDevice: null 
+            });
         }
     }
 
-    // --- LỆNH QUAN TRỌNG: TỰ ĐỘNG THOÁT TOÀN MÀN HÌNH KHI RỜI PHÒNG ---
-    if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-    } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen().catch(() => {});
-    }
-    
-    // Xóa các class giả lập Fullscreen (cho iPhone)
-    const wrapper = document.getElementById('video-wrapper');
-    wrapper.classList.remove('ios-fake-fullscreen');
-    document.body.classList.remove('is-fullscreen');
-    
-    // Reset icon về trạng thái ban đầu
-    const icon = document.getElementById('fullscreen-icon');
-    if(icon) icon.className = "fa-solid fa-expand text-white text-lg";
+    // Thoát Fullscreen
+    if (document.exitFullscreen) document.exitFullscreen().catch(()=>null);
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen().catch(()=>null);
 
-    // Dọn dẹp kết nối Peer
+    // Dọn dẹp UI
+    document.getElementById('video-wrapper').classList.remove('ios-fake-fullscreen');
+    document.body.classList.remove('is-fullscreen');
+    document.getElementById('peer-call-container').classList.add('hidden');
+    document.getElementById('peer-lobby-container').classList.remove('hidden');
+    document.getElementById('remote-video').srcObject = null;
+
+    // Ngắt kết nối stream
     if (remoteCall) remoteCall.close();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (peer) peer.destroy();
-
-    // Ẩn giao diện gọi, hiện lại Lobby
-    document.getElementById('peer-call-container').classList.add('hidden');
-    document.getElementById('peer-lobby-container').classList.remove('hidden');
-    document.getElementById('room-id-badge').classList.add('hidden');
     
-    // Reset biến trạng thái
+    // Reset biến
     peer = null; localStream = null; remoteCall = null; 
     currentRoomId = null; isHost = false;
-    isMicOn = true; isCamOn = true; 
 
-    S_Notify.alert("Đã rời phòng và thoát toàn màn hình");
+    S_Notify.alert("Đã kết thúc cuộc gọi");
 }
 
 async function toggleFullscreen() {
