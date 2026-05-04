@@ -1013,58 +1013,58 @@ async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
     const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
     const rooms = snapshot.val();
+
     if (rooms) {
-        currentRoomId = Object.keys(rooms)[0]; isHost = false;
-        await roomsRef.child(currentRoomId).update({ 
+        currentRoomId = Object.keys(rooms)[0]; 
+        isHost = false;
+        const roomRef = roomsRef.child(currentRoomId);
+
+        // KHI GUEST THOÁT ĐỘT NGỘT: Đưa phòng về trạng thái chờ
+        roomRef.onDisconnect().update({ 
+            status: 'waiting', 
+            guestId: null, 
+            guestDevice: null 
+        });
+
+        await roomRef.update({ 
             status: 'occupied', 
             guestId: myPeerId,
             guestCamOn: true,
-            guestDevice: getDeviceType() // THÊM DÒNG NÀY
+            guestDevice: getDeviceType() 
         });
+        
         remoteCall = peer.call(rooms[currentRoomId].hostId, localStream);
         setupCallListeners(remoteCall);
     } else {
-        isHost = true; currentRoomId = myPeerId;
-        await roomsRef.child(currentRoomId).set({ 
-            hostId: myPeerId, 
-            status: 'waiting', 
-            hostCamOn: true, 
-            guestCamOn: true,
-            hostDevice: getDeviceType() // THÊM DÒNG NÀY
-        });
-        roomsRef.child(currentRoomId).onDisconnect().remove();
-    }
-    observeRoom(roomsRef.child(currentRoomId));
+    isHost = true; currentRoomId = myPeerId;
+            const roomRef = roomsRef.child(currentRoomId);
+            await roomRef.set({ 
+                hostId: myPeerId, status: 'waiting', hostCamOn: true, hostDevice: getDeviceType() 
+            });
+            roomRef.onDisconnect().remove(); // Host mất mạng thì xóa phòng
+        }
+        observeRoom(roomsRef.child(currentRoomId));
 }
-
 async function enterPrivateRoom(roomId) {
     currentRoomId = roomId;
-    const badge = document.getElementById('room-id-badge');
-    const displayId = document.getElementById('display-room-id');
-    if(badge) badge.classList.remove('hidden');
-    if(displayId) displayId.innerText = roomId;
-
     const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
     const snapshot = await roomRef.once('value');
     const data = snapshot.val();
 
     if (data && data.status === 'waiting') {
-        isHost = false; 
+        isHost = false;
+        // KHI GUEST PHÒNG RIÊNG THOÁT ĐỘT NGỘT
+        roomRef.onDisconnect().update({ status: 'waiting', guestId: null });
+        
         await roomRef.update({ 
-            status: 'occupied', 
-            guestId: myPeerId,
-            guestCamOn: true,
-            guestDevice: getDeviceType() // Gửi cái này lên để bên kia thấy
+            status: 'occupied', guestId: myPeerId, guestCamOn: true, guestDevice: getDeviceType() 
         });
-        remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
+        remoteCall = peer.call(data.hostId, localStream);
+        setupCallListeners(remoteCall);
     } else {
-        isHost = true; 
+        isHost = true;
         await roomRef.set({ 
-            hostId: myPeerId, 
-            status: 'waiting', 
-            hostCamOn: true, 
-            guestCamOn: true,
-            hostDevice: getDeviceType() // Gửi cái này lên
+            hostId: myPeerId, status: 'waiting', hostCamOn: true, hostDevice: getDeviceType() 
         });
         roomRef.onDisconnect().remove();
     }
@@ -1081,46 +1081,35 @@ async function enterPrivateRoom(roomId) {
     function observeRoom(ref) {
     ref.on('value', (snap) => {
         const data = snap.val(); 
+        const placeholder = document.getElementById('video-placeholder');
+        const remoteVideo = document.getElementById('remote-video');
+        const statusDisplay = document.getElementById('partner-status-display');
+
         if (!data) {
-            // Nếu phòng bị xóa (Host thoát), người còn lại cũng thoát ra lobby
-            S_Notify.alert("Phòng đã bị đóng");
             leaveMatch();
             return;
         }
 
-        const placeholder = document.getElementById('video-placeholder');
-        const statusDisplay = document.getElementById('partner-status-display');
-        const remoteVideo = document.getElementById('remote-video');
-
         if (data.status === 'waiting') {
-            // --- ĐỐI PHƯƠNG ĐÃ THOÁT: QUAY LẠI TRẠNG THÁI CHỜ ---
-            
-            // 1. Hiện lại spinner và bảng chờ
-            placeholder.classList.remove('hidden'); 
-            
-            // 2. Quan trọng: Xóa src của video để không bị hiện hình cũ/đen
-            if (remoteVideo) {
-                remoteVideo.srcObject = null;
-                remoteVideo.load(); // Buộc video reset
+            // ĐỐI PHƯƠNG THOÁT (Dù là tắt web hay kill app)
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(t => t.stop()); // Dừng stream cũ
+                remoteVideo.srcObject = null; // Xóa hình ảnh treo
             }
             
-            // 3. Cập nhật thông báo
-            statusDisplay.innerText = "Trạng thái: Đang chờ đối tác...";
+            placeholder.classList.remove('hidden'); // Hiện lại màn hình chờ
             document.getElementById('waiting-msg').innerText = "Đối tác đã rời đi. Đang chờ người mới...";
+            statusDisplay.innerText = "Trạng thái: Đang chờ...";
 
-            // Nếu mình là khách mà chủ phòng thoát (phòng reset), khách nên ra ngoài
-            if (!isHost) {
-                S_Notify.alert("Chủ phòng đã rời đi");
-                leaveMatch();
-            }
-        } else if (data.status === 'occupied') {
-            // --- CÓ ĐỐI TÁC MỚI VÀO ---
-            // Placeholder sẽ được ẩn bên trong hàm setupCallListeners khi nhận được stream thực sự
+            // Nếu mình là khách mà host thoát (phòng biến mất/reset), thì mình cũng ra ngoài
+            if (!isHost) leaveMatch();
+        } 
+        else if (data.status === 'occupied') {
             const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
-            statusDisplay.innerText = `Đối tác: ${partnerDevice ? partnerDevice.toUpperCase() : 'Đang kết nối...'}`;
+            statusDisplay.innerText = `Đối tác: ${partnerDevice ? partnerDevice.toUpperCase() : '...'}`;
+            // Placeholder sẽ tự ẩn khi setupCallListeners nhận được 'stream'
         }
 
-        // Kiểm tra Camera đối phương (để hiện overlay nếu họ tắt cam)
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
         document.getElementById('remote-cam-off-overlay').classList.toggle('hidden', partnerCam !== false);
     });
