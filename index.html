@@ -1229,11 +1229,10 @@ function observeRoom(ref) {
                     });
                 }
             }
-            placeholder.classList.remove('hidden');
         }
         else if (data.status === 'occupied') {
-            // Khi trạng thái là occupied, chuẩn bị kết nối
-            // Placeholder sẽ ẩn khi nhận được stream (trong setupCallListeners)
+            // Khi phòng đã có đủ 2 người, ẩn placeholder ngay lập tức
+            document.getElementById('video-placeholder').classList.add('hidden');
         }
 
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
@@ -1243,18 +1242,16 @@ function observeRoom(ref) {
 
 function setupCallListeners(call) {
     call.on('stream', stream => {
-        isCallConnected = true; // Đánh dấu đã kết nối thành công
+        isCallConnected = true;
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) {
             remoteVideo.srcObject = stream;
-            remoteVideo.onloadedmetadata = () => {
-                document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
-                document.getElementById('video-placeholder').classList.add('hidden');
-            };
+            // Ẩn placeholder ngay lập tức
+            document.getElementById('video-placeholder').classList.add('hidden');
+            document.getElementById('partner-status-display').innerText = 'Trạng thái: Đã kết nối ✓';
         }
     });
     
-    // Sự kiện khi Peer ngắt kết nối (do mạng yếu hoặc thoát)
     call.on('close', () => {
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) remoteVideo.srcObject = null;
