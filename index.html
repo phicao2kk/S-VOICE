@@ -358,6 +358,18 @@
                 
                 <video id="remote-video" autoplay playsinline class="w-full h-full object-cover z-0"></video>
 
+                <!-- HIỂN THỊ MÃ PHÒNG (MỚI) -->
+                <div id="room-id-badge" class="hidden absolute top-20 left-6 bg-emerald-500/20 border border-emerald-500/30 px-3 py-2 rounded-2xl backdrop-blur-md z-30 flex items-center gap-3">
+                    <div class="flex flex-col">
+                        <span class="text-[7px] font-black uppercase text-emerald-400 tracking-[1px]">Mã phòng riêng</span>
+                        <span id="display-room-id" class="text-[11px] font-black text-white tracking-widest">-----</span>
+                    </div>
+                    <button onclick="copyRoomId()" class="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all text-emerald-400">
+                        <i class="fa-solid fa-copy text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Các phần khác giữ nguyên (video-placeholder, controls...) -->
                 <div id="remote-cam-off-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900/95 z-[5]">
                     <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
                         <i class="fa-solid fa-video-slash text-xl text-slate-500"></i>
@@ -365,13 +377,11 @@
                     <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Đối phương đã tắt Camera</p>
                 </div>
 
-                <!-- Bảng chờ: Tự hiện lại nếu người kia thoát -->
                 <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md z-10">
                     <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                     <p id="waiting-msg" class="mt-6 text-[10px] font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác...</p>
                 </div>
 
-                <!-- Nút Phóng to tối ưu Mobile -->
                 <button id="fullscreen-btn" onclick="toggleFullscreen()" class="absolute top-6 right-6 w-12 h-12 rounded-full pill-glass flex items-center justify-center z-[100] active:scale-90 transition-transform">
                     <i id="fullscreen-icon" class="fa-solid fa-expand text-white text-lg"></i>
                 </button>
@@ -924,6 +934,11 @@ let currentCursor = 0;
 
     async function enterPrivateRoom(roomId) {
         currentRoomId = roomId;
+        
+        // Hiển thị mã phòng lên giao diện
+        document.getElementById('room-id-badge').classList.remove('hidden');
+        document.getElementById('display-room-id').innerText = roomId;
+
         const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
         const snapshot = await roomRef.once('value');
         const data = snapshot.val();
@@ -932,14 +947,22 @@ let currentCursor = 0;
             await roomRef.update({ 
                 status: 'occupied', 
                 guestId: myPeerId,
-                guestCamOn: true // Ép Firebase biết guest đang bật cam
+                guestCamOn: true 
             });
             remoteCall = peer.call(data.hostId, localStream); setupCallListeners(remoteCall);
         } else {
-            isHost = true; await roomRef.set({ hostId: myPeerId, status: 'waiting', hostCamOn: true, guestCamOn: true });
+            isHost = true; 
+            await roomRef.set({ hostId: myPeerId, status: 'waiting', hostCamOn: true, guestCamOn: true });
             roomRef.onDisconnect().remove();
         }
         observeRoom(roomRef);
+    }
+
+    function copyRoomId() {
+        const roomId = document.getElementById('display-room-id').innerText;
+        navigator.clipboard.writeText(roomId).then(() => {
+            S_Notify.alert("Đã sao chép mã phòng: " + roomId);
+        });
     }
 
     function observeRoom(ref) {
@@ -1018,16 +1041,9 @@ function leaveMatch() {
     if (currentRoomId) {
         const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
         ref.off(); 
-
-        if (isHost) {
-            ref.remove();
-        } else {
-            // Khi Guest thoát, đưa phòng về trạng thái chờ và reset camera cho Host thấy
-            ref.update({ 
-                status: 'waiting', 
-                guestId: null,
-                guestCamOn: true 
-            });
+        if (isHost) ref.remove();
+        else {
+            ref.update({ status: 'waiting', guestId: null, guestCamOn: true });
         }
     }
 
@@ -1035,14 +1051,10 @@ function leaveMatch() {
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (peer) peer.destroy();
 
-    // Dọn dẹp giao diện
     document.getElementById('peer-call-container').classList.add('hidden');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
-    document.getElementById('remote-cam-off-overlay').classList.add('hidden');
-    document.getElementById('video-placeholder').classList.remove('hidden');
-    document.getElementById('remote-video').srcObject = null;
+    document.getElementById('room-id-badge').classList.add('hidden'); // Ẩn badge mã phòng
     
-    // RESET BIẾN TOÀN CỤC
     peer = null; localStream = null; remoteCall = null; 
     currentRoomId = null; isHost = false;
     isMicOn = true; isCamOn = true; 
@@ -1050,26 +1062,45 @@ function leaveMatch() {
     S_Notify.alert("Đã rời phòng");
 }
 
-    async function toggleFullscreen() {
-        const wrapper = document.getElementById('video-wrapper');
-        const video = document.getElementById('remote-video');
-        const icon = document.getElementById('fullscreen-icon');
+async function toggleFullscreen() {
+    const wrapper = document.getElementById('video-wrapper');
+    const icon = document.getElementById('fullscreen-icon');
 
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            try {
-                if (wrapper.requestFullscreen) await wrapper.requestFullscreen();
-                else if (wrapper.webkitRequestFullscreen) await wrapper.webkitRequestFullscreen();
-                else if (video.webkitEnterFullscreen) await video.webkitEnterFullscreen();
-                
-                if (icon) icon.className = "fa-solid fa-compress text-white text-lg";
-            } catch (e) { console.error(e); }
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            if (icon) icon.className = "fa-solid fa-expand text-white text-lg";
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        try {
+            // Thực hiện Fullscreen
+            if (wrapper.requestFullscreen) {
+                await wrapper.requestFullscreen();
+            } else if (wrapper.webkitRequestFullscreen) {
+                await wrapper.webkitRequestFullscreen();
+            } else if (wrapper.mozRequestFullScreen) {
+                await wrapper.mozRequestFullScreen();
+            }
+
+            // Ép xoay ngang (Chỉ hoạt động trên Android Chrome, iOS cần người dùng tự xoay)
+            if (screen.orientation && screen.orientation.lock) {
+                await screen.orientation.lock('landscape').catch(err => {
+                    console.log("Xoay ngang tự động bị chặn hoặc không hỗ trợ.");
+                });
+            }
+            
+            icon.className = "fa-solid fa-compress text-white text-lg";
+        } catch (e) {
+            S_Notify.alert("Lỗi khi phóng to màn hình", "error");
         }
+    } else {
+        // Thoát Fullscreen
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        
+        // Mở khóa hướng màn hình
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+        
+        icon.className = "fa-solid fa-expand text-white text-lg";
     }
-
+}
 
     // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks=[], communityBlob=null;
