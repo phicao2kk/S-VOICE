@@ -878,6 +878,11 @@ async function createOrJoinRoom() {
         peer.on('call', call => {
             remoteCall = call;
             call.answer(localStream);
+            
+            // Cập nhật text cho chủ phòng biết đã có người kết nối
+            const roomId = document.getElementById('peer-roomid').value.trim();
+            document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Đã kết nối)`;
+            
             setupCallListeners(call);
         });
 
@@ -941,9 +946,12 @@ function setupCallListeners(call) {
         const remoteVideo = document.getElementById('remote-video');
         remoteVideo.srcObject = remoteStream;
         
-        // Ẩn bảng chờ ngay khi nhận được hình ảnh đối phương
+        // --- SỬA TẠI ĐÂY ---
+        // Thay vì .remove('hidden'), hãy dùng .add('hidden') để ẩn lớp overlay đi
         const placeholder = document.getElementById('video-placeholder');
-        if (placeholder) placeholder.classList.remove('hidden');
+        if (placeholder) {
+            placeholder.classList.add('hidden'); 
+        }
     });
 
     call.on('close', () => {
