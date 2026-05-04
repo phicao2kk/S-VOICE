@@ -338,10 +338,94 @@ video {
 #video-wrapper:not(.pc-call):not(.mobile-call) {
     aspect-ratio: 16 / 9;
 }
-    </style>
+
+/* Hiệu ứng Chấm tín hiệu Neural */
+.dot-signal {
+    width: 6px; height: 6px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%; position: relative;
+    transition: all 0.4s ease;
+}
+.field-container:focus-within .dot-signal {
+    background-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent), 0 0 20px rgba(34, 211, 238, 0.4);
+}
+.field-container:focus-within .dot-signal::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); width: 20px; height: 20px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(34, 211, 238, 0.2) 0%, transparent 70%);
+    animation: pulse-dot 1.5s infinite;
+}
+@keyframes pulse-dot {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+#confirm-password-container { max-height: 0; opacity: 0; overflow: hidden; transition: all 0.5s ease; }
+#confirm-password-container.show { 
+    max-height: 150px; 
+    opacity: 1; 
+    margin-top: 1.5rem; 
+    overflow: visible !important; /* Thêm dòng này để không bị cắt hào quang */
+}
+</style>
 </head>
 <body class="selection:bg-indigo-500/30">
 <div class="mesh-bg"></div>
+
+<!-- MÀN HÌNH ĐĂNG NHẬP (OVERLAY) -->
+<div id="view-auth" class="fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 bg-[#020617]">
+    <div class="text-center mb-8">
+        <img src="https://i.ibb.co/5gSrmbp3/S-VOTES.png" class="w-16 h-16 mx-auto rounded-2xl shadow-2xl mb-4 border border-white/10 bg-indigo-600 p-2 brightness-0 invert">
+        <h1 class="text-2xl font-black uppercase italic text-white tracking-tighter">S-VOICE</h1>
+    </div>
+
+    <div class="glass max-w-[380px] w-full p-8 rounded-[3rem] relative">
+        <div id="auth-badge-wrapper" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 px-6 py-1.5 rounded-full border border-white/20 shadow-lg z-10 transition-all duration-500">
+            <span id="auth-subtitle" class="text-[10px] text-white font-black uppercase tracking-widest">HỆ THỐNG TRUY CẬP</span>
+        </div>
+
+        <div class="space-y-5 pt-4">
+            <div class="field-container group">
+                <div class="flex items-center gap-3 mb-2 ml-1">
+                    <div class="dot-signal"></div>
+                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Tài khoản</label>
+                </div>
+                <input type="text" id="auth-email" placeholder="Email hoặc SĐT" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
+            </div>
+
+            <div class="field-container group">
+                <div class="flex items-center gap-3 mb-2 ml-1">
+                    <div class="dot-signal"></div>
+                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Mật khẩu</label>
+                </div>
+                <div class="relative">
+                    <input type="password" id="auth-pass" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
+                    <button onclick="togglePassVisibility('auth-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i class="fa-solid fa-eye text-xs"></i></button>
+                </div>
+            </div>
+
+            <!-- PHẦN XÁC NHẬN MẬT KHẨU (ĐÃ FIX LỖI CẮT GÓC) -->
+            <div id="confirm-password-container" class="field-container group pl-2"> <!-- Thêm pl-2 ở đây -->
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="dot-signal"></div>
+                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Xác nhận mật khẩu</label>
+                </div>
+                <div class="relative pr-2"> <!-- Thêm pr-2 để cân bằng -->
+                    <input type="password" id="auth-confirm" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
+                    <button onclick="togglePassVisibility('auth-confirm', this)" class="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="handleAuthSubmit()" class="btn-main w-full py-4 rounded-[2rem] mt-4 font-black uppercase tracking-widest text-xs text-white">Xác nhận truy cập</button>
+
+            <button onclick="toggleAuthMode()" id="btn-toggle-auth" class="w-full text-[9px] text-slate-400 uppercase font-black tracking-widest mt-2 hover:text-white transition-colors text-center">
+                Chưa có tài khoản? <span class="text-emerald-400 underline decoration-emerald-500/30 underline-offset-4">Đăng ký</span>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Navbar -->
 <nav class="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-6 lg:px-12 backdrop-blur-3xl bg-[#020617]/80 z-[100] border-b border-white/5">
@@ -359,6 +443,16 @@ video {
         <button data-tab="shadowing" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">SHADOWING</button>
         <button data-tab="peer" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">PEERS</button>
         <button data-tab="community" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">COMMUNITY</button>
+    </div>
+    <!-- Thêm vào bên trong thẻ <nav>, sau khối nút Tab -->
+    <div id="user-nav-area" class="hidden items-center gap-3 ml-4 border-l border-white/10 pl-4">
+        <div class="text-right hidden sm:block">
+            <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Đang truy cập</span>
+            <span id="display-user-id" class="text-[10px] font-bold text-indigo-400 truncate max-w-[120px] inline-block">--</span>
+        </div>
+        <button onclick="handleLogout()" class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center group" title="Thoát hệ thống">
+            <i class="fa-solid fa-power-off text-xs group-hover:scale-110 transition-transform"></i>
+        </button>
     </div>
 </nav>
 
@@ -628,6 +722,65 @@ video {
     const rdb = firebase.database();
     const storage = firebase.storage();
     
+    let isLoginMode = true;
+
+function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    const badge = document.getElementById('auth-badge-wrapper');
+    const subtitle = document.getElementById('auth-subtitle');
+    const toggleBtn = document.getElementById('btn-toggle-auth');
+    const confirmBox = document.getElementById('confirm-password-container');
+
+    if (isLoginMode) {
+        // Chế độ ĐĂNG NHẬP: Hiện chữ "Đăng ký" màu xanh lá
+        badge.classList.replace('bg-emerald-600', 'bg-indigo-600');
+        subtitle.innerText = "HỆ THỐNG TRUY CẬP";
+        toggleBtn.innerHTML = "Chưa có tài khoản? <span class='text-emerald-400 underline decoration-emerald-500/30 underline-offset-4'>Đăng ký</span>";
+        confirmBox.classList.remove('show');
+    } else {
+        // Chế độ ĐĂNG KÝ: Hiện chữ "Đăng nhập" màu tím
+        badge.classList.replace('bg-indigo-600', 'bg-emerald-600');
+        subtitle.innerText = "ĐĂNG KÝ TÀI KHOẢN";
+        toggleBtn.innerHTML = "Đã có tài khoản? <span class='text-indigo-400 underline decoration-indigo-500/30 underline-offset-4'>Đăng nhập</span>";
+        confirmBox.classList.add('show');
+    }
+}
+
+function togglePassVisibility(id, btn) {
+    const input = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+// Hàm giả lập đăng nhập để vào app
+function handleAuthSubmit() {
+    const email = document.getElementById('auth-email').value;
+    const pass = document.getElementById('auth-pass').value;
+    
+    if(!email || !pass) return S_Notify.alert("Vui lòng nhập đủ thông tin", "error");
+    
+    // Lưu định danh và hiển thị lên Navbar
+    document.getElementById('display-user-id').innerText = email;
+    const navArea = document.getElementById('user-nav-area');
+    navArea.classList.remove('hidden');
+    navArea.classList.add('flex');
+
+    S_Notify.alert("Truy cập thành công!");
+    
+    // Hiệu ứng biến mất màn hình đăng nhập
+    const authView = document.getElementById('view-auth');
+    authView.style.transition = "all 0.8s ease";
+    authView.style.opacity = "0";
+    authView.style.transform = "scale(1.1)";
+    setTimeout(() => authView.classList.add('hidden'), 800);
+}
+
     function getDeviceType() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "mobile" : "pc";
 }
@@ -668,15 +821,8 @@ video {
     };
 
     // ================= 1. SHADOWING LOGIC =================
-    let shadowingUnsubscribe = null;
-
-async function loadShadowingList() {
-    // Nếu đã có listener thì không đăng ký lại (hoặc hủy cũ)
-    if (shadowingUnsubscribe) {
-        shadowingUnsubscribe();
-    }
-    const shadowingRef = rdb.ref('s_talk/shadowing');
-    shadowingUnsubscribe = shadowingRef.on('value', (snapshot) => {
+    async function loadShadowingList() {
+        const snapshot = await rdb.ref('s_talk/shadowing').once('value');
         const data = snapshot.val() || {};
         const container = document.getElementById('shadow-list');
         container.innerHTML = '';
@@ -685,25 +831,15 @@ async function loadShadowingList() {
             div.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group';
             div.innerHTML = `
                 <div class="flex justify-between items-start mb-1">
-                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${escapeHtml(item.title)}</p>
+                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${item.title}</p>
                     <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-indigo-500 transition-all"></i>
                 </div>
-                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${escapeHtml(item.text.substring(0,40))}...</p>
+                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${item.text.substring(0,40)}...</p>
             `;
             div.onclick = () => loadShadowingItem(id, item);
             container.appendChild(div);
         }
-    });
-}
-// Thêm hàm escapeHtml để tránh XSS (nếu cần)
-function escapeHtml(str) {
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
+    }
 
     function loadShadowingItem(id, item) {
         currentShadowingId = id;
@@ -1431,14 +1567,7 @@ function leaveMatch() {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             if(btn.dataset.tab === 'community') loadCommunityPosts();
-            if(btn.dataset.tab === 'shadowing') {
-                // Hủy listener cũ trước khi tạo mới
-                if (shadowingUnsubscribe) {
-                    shadowingUnsubscribe();
-                    shadowingUnsubscribe = null;
-                }
-                loadShadowingList();
-            }
+            if(btn.dataset.tab === 'shadowing') loadShadowingList();
         };
     });
 
@@ -1476,6 +1605,27 @@ function leaveMatch() {
     }
     update();
 }
+
+function handleLogout() {
+    S_Notify.confirm("Bạn có chắc chắn muốn đăng xuất không?", () => {
+        // Hiện lại màn hình đăng nhập
+        const authView = document.getElementById('view-auth');
+        authView.classList.remove('hidden');
+        authView.style.opacity = "1";
+        authView.style.transform = "scale(1)";
+        
+        // Ẩn thông tin người dùng trên Navbar
+        const navArea = document.getElementById('user-nav-area');
+        navArea.classList.remove('flex');
+        navArea.classList.add('hidden');
+        
+        // Xóa trắng input (tùy chọn bảo mật)
+        document.getElementById('auth-pass').value = "";
+        
+        S_Notify.alert("Đã đăng xuất hệ thống");
+    });
+}
+
 </script>
 </body>
 </html>
