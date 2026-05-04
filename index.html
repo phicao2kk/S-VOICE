@@ -1103,32 +1103,32 @@ async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
     if (!myPeerId) { setTimeout(() => findRandomMatch(), 500); return; }
 
-    // Xóa phòng cũ quá 10 giây
+    // 1. Xóa các phòng chờ quá cũ (5 giây)
     const now = Date.now();
     const allRooms = await roomsRef.once('value');
     const removePromises = [];
     allRooms.forEach(snap => {
         const room = snap.val();
-        if (room.createdAt && (now - room.createdAt > 10000) && room.status === 'waiting') {
+        if (room.createdAt && (now - room.createdAt > 5000) && room.status === 'waiting') {
             removePromises.push(snap.ref.remove());
         }
     });
     await Promise.all(removePromises);
 
-    // Tìm phòng đang chờ
-    const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
+    // 2. Lấy danh sách phòng đang chờ (status='waiting')
+    const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').once('value');
     const rooms = snapshot.val();
+    const roomIds = rooms ? Object.keys(rooms) : [];
 
-    if (rooms) {
-        // Đã có phòng -> vào
-        currentRoomId = Object.keys(rooms)[0];
+    // 3. Lọc bỏ phòng của chính mình
+    const otherRooms = roomIds.filter(id => rooms[id].hostId !== myPeerId);
+
+    if (otherRooms.length > 0) {
+        // CÓ phòng của người khác -> chọn ngẫu nhiên một phòng
+        const randomIndex = Math.floor(Math.random() * otherRooms.length);
+        currentRoomId = otherRooms[randomIndex];
         const room = rooms[currentRoomId];
-        if (room.hostId === myPeerId) {
-            // Phòng của chính mình (lỗi) -> xóa và thử lại sau 1s
-            await roomsRef.child(currentRoomId).remove();
-            setTimeout(() => findRandomMatch(), 1000);
-            return;
-        }
+        
         isHost = false;
         await roomsRef.child(currentRoomId).update({
             status: 'occupied',
@@ -1140,16 +1140,23 @@ async function findRandomMatch() {
             guestId: null,
             guestDevice: null
         });
-        console.log("Joining room", currentRoomId, "host:", room.hostId);
+        console.log(`🎲 Random: chọn phòng ${currentRoomId} (host: ${room.hostId})`);
         remoteCall = peer.call(room.hostId, localStream);
         setupCallListeners(remoteCall);
+    } else if (roomIds.length > 0 && otherRooms.length === 0) {
+        // Chỉ có phòng của chính mình (lỗi cũ) -> xóa và tạo phòng mới sau 0.5s
+        for (let id of roomIds) {
+            await roomsRef.child(id).remove();
+        }
+        setTimeout(() => findRandomMatch(), 500);
+        return;
     } else {
-        // Không có phòng -> tạo phòng mới (sau delay ngẫu nhiên để tránh xung đột)
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 2000));
-        // Kiểm tra lại xem có phòng mới được tạo bởi người khác chưa
-        const recheck = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
+        // KHÔNG có phòng -> tạo phòng mới (sau delay ngẫu nhiên 0-1s để tránh xung đột)
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
+        // Kiểm tra lại lần nữa xem có phòng nào vừa được tạo chưa
+        const recheck = await roomsRef.orderByChild('status').equalTo('waiting').once('value');
         if (recheck.exists()) {
-            // Có phòng rồi, thực hiện vào phòng thay vì tạo mới
+            // Nếu có rồi thì quay lại xử lý (vào phòng)
             findRandomMatch();
             return;
         }
@@ -1162,7 +1169,7 @@ async function findRandomMatch() {
             createdAt: Date.now()
         });
         roomsRef.child(currentRoomId).onDisconnect().remove();
-        console.log("Created new room", currentRoomId);
+        console.log(`🏠 Tạo phòng chờ mới: ${currentRoomId}`);
     }
     observeRoom(roomsRef.child(currentRoomId));
 }
@@ -1201,13 +1208,13 @@ async function enterPrivateRoom(roomId) {
     }
 
 function observeRoom(ref) {
-    console.log("observeRoom update:", data);
     ref.on('value', (snap) => {
-        const data = snap.val(); 
+        const data = snap.val();
+        console.log("observeRoom update:", data);
         const placeholder = document.getElementById('video-placeholder');
         const waitingMsg = document.getElementById('waiting-msg');
         const statusSpan = document.getElementById('partner-status-display');
-
+        
         if (!data) { 
             // Phòng đã bị xóa (host thoát đột ngột)
             if (!isHost) {
@@ -1276,11 +1283,10 @@ function observeRoom(ref) {
 function setupCallListeners(call) {
     const streamTimeout = setTimeout(() => {
         if (!isCallConnected) {
-            console.log("Stream timeout, isCallConnected=", isCallConnected);
-            S_Notify.alert("Không thể kết nối video sau 20 giây. Kiểm tra mạng hoặc tường lửa.", "error");
+            S_Notify.alert("Không thể kết nối video sau 10 giây. Kiểm tra mạng.", "error");
             leaveMatch();
         }
-    }, 20000);
+    }, 10000); 
     
     call.on('stream', stream => {
         clearTimeout(streamTimeout);
