@@ -1066,12 +1066,11 @@ let currentCursor = 0;
         if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
 
         peer = new Peer({
-            host: 'peerjs-server.herokuapp.com',
-            port: 443,
-            path: '/',
             config: {
                 iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' }
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
                 ]
             }
         });
