@@ -165,7 +165,6 @@
 /* Ép video-placeholder hiển thị đúng khi ở fullscreen */
 #video-wrapper:fullscreen #video-placeholder {
     z-index: 800 !important;
-    display: flex !important;
 }
 
 /* Hàm ẩn quan trọng: Khi JS thêm class .hidden thì phải biến mất hoàn toàn */
@@ -187,7 +186,9 @@
 }
 
 /* Ép video-placeholder và remote-overlay ẩn khi có class .hidden */
-#video-placeholder.hidden, #remote-cam-off-overlay.hidden, #local-cam-off-overlay.hidden {
+#video-placeholder.hidden, 
+#remote-cam-off-overlay.hidden, 
+#local-cam-off-overlay.hidden {
     display: none !important;
 }
 
@@ -836,19 +837,19 @@ let currentCursor = 0;
         return match / Math.max(w1.length, w2.length);
     }
 
-// ================= 2. PEER LOGIC (BẢN FIX ĐẦY ĐỦ) =================
+// ================= 2. PEER LOGIC (BẢN FIX TRIỆT ĐỂ LỖI HIỂN THỊ) =================
     var peer, localStream, remoteCall;
     var myPeerId = null;
     var currentRoomId = null;
     var isHost = false;
     var roomType = 'random'; 
-    var isMicOn = true; // Thêm lại biến này
-    var isCamOn = true; // Thêm lại biến này
+    var isMicOn = true;
+    var isCamOn = true;
 
     async function startMatching(type) {
         roomType = type;
         let privateId = document.getElementById('peer-roomid-input').value.trim();
-        if (type === 'private' && !privateId) return S_Notify.alert("Vui lòng nhập mã phòng riêng!", "error");
+        if (type === 'private' && !privateId) return S_Notify.alert("Nhập mã phòng riêng!", "error");
 
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -859,6 +860,10 @@ let currentCursor = 0;
             document.getElementById('peer-lobby-container').classList.add('hidden');
             document.getElementById('peer-call-container').classList.remove('hidden');
             document.getElementById('local-video').srcObject = localStream;
+            
+            // RESET GIAO DIỆN VỀ TRẠNG THÁI CHỜ
+            document.getElementById('video-placeholder').classList.remove('hidden');
+            document.getElementById('remote-cam-off-overlay').classList.add('hidden');
             
             if (typeof startVolumeMeter === "function") startVolumeMeter(localStream);
 
@@ -875,13 +880,8 @@ let currentCursor = 0;
                 setupCallListeners(call);
             });
 
-            peer.on('error', (err) => {
-                S_Notify.alert("Lỗi kết nối Peer!", "error");
-                leaveMatch();
-            });
-        } catch (e) {
-            S_Notify.alert("Lỗi mở Camera/Mic!", "error");
-        }
+            peer.on('error', (err) => { leaveMatch(); });
+        } catch (e) { S_Notify.alert("Lỗi thiết bị!", "error"); }
     }
 
     async function findRandomMatch() {
@@ -919,79 +919,105 @@ let currentCursor = 0;
     function observeRoom(ref) {
         ref.on('value', (snap) => {
             const data = snap.val(); if (!data) return;
+
+            const placeholder = document.getElementById('video-placeholder');
+            const remoteOverlay = document.getElementById('remote-cam-off-overlay');
+
+            // NẾU PHÒNG TRỐNG (ĐANG CHỜ)
             if (data.status === 'waiting') {
-                document.getElementById('video-placeholder').classList.remove('hidden');
+                placeholder.classList.remove('hidden');
+                remoteOverlay.classList.add('hidden'); // PHẢI ẨN CÁI NÀY ĐI KHI ĐANG CHỜ
                 document.getElementById('remote-video').srcObject = null;
                 document.getElementById('partner-status-display').innerText = "Đang chờ đối tác...";
                 if (remoteCall) remoteCall.close();
-            } else { document.getElementById('partner-status-display').innerText = "Đã kết nối"; }
-            const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
-            const remoteOverlay = document.getElementById('remote-cam-off-overlay');
-            if (remoteOverlay) remoteOverlay.classList.toggle('hidden', partnerCam !== false);
+            } else {
+                // ĐÃ CÓ NGƯỜI VÔ
+                document.getElementById('partner-status-display').innerText = "Đã kết nối";
+                
+                // Kiểm tra trạng thái Cam của đối phương
+                const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
+                if (partnerCam === false) {
+                    remoteOverlay.classList.remove('hidden');
+                } else {
+                    remoteOverlay.classList.add('hidden');
+                }
+            }
         });
     }
 
     function setupCallListeners(call) {
         call.on('stream', stream => {
             const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) { remoteVideo.srcObject = stream; document.getElementById('video-placeholder').classList.add('hidden'); }
+            if (remoteVideo) {
+                remoteVideo.srcObject = stream;
+                // KHI CÓ LUỒNG VIDEO THÌ ẨN BẢNG CHỜ NGAY LẬP TỨC
+                document.getElementById('video-placeholder').classList.add('hidden');
+            }
         });
+        
         call.on('close', () => {
             if (isHost) {
                 const path = roomType === 'random' ? 'random' : 'private';
                 rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update({ status: 'waiting', guestId: null });
-            } else leaveMatch();
+            } else { leaveMatch(); }
         });
     }
 
-    // --- HÀM ĐIỀU KHIỂN MIC/CAM (BẮT BUỘC PHẢI CÓ) ---
     function toggleMic() {
         if (!localStream) return;
         isMicOn = !isMicOn;
-        localStream.getAudioTracks().forEach(track => track.enabled = isMicOn);
-        const icon = document.getElementById('mic-icon');
-        const btn = document.getElementById('toggle-mic');
-        icon.className = isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash';
-        btn.classList.toggle('bg-red-500', !isMicOn);
+        localStream.getAudioTracks().forEach(t => t.enabled = isMicOn);
+        document.getElementById('mic-icon').className = isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash';
+        document.getElementById('toggle-mic').classList.toggle('bg-red-500', !isMicOn);
     }
 
     function toggleCamera() {
         if (!localStream) return;
         isCamOn = !isCamOn;
-        localStream.getVideoTracks().forEach(track => track.enabled = isCamOn);
-        const icon = document.getElementById('cam-icon');
-        const btn = document.getElementById('toggle-cam');
-        icon.className = isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash';
-        btn.classList.toggle('bg-red-500', !isCamOn);
+        localStream.getVideoTracks().forEach(t => t.enabled = isCamOn);
+        document.getElementById('cam-icon').className = isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash';
+        document.getElementById('toggle-cam').classList.toggle('bg-red-500', !isCamOn);
         document.getElementById('local-cam-off-overlay').classList.toggle('hidden', isCamOn);
+        
         const path = roomType === 'random' ? 'random' : 'private';
-        if (currentRoomId) rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update(isHost ? {hostCamOn: isCamOn} : {guestCamOn: isCamOn});
+        if (currentRoomId) {
+            rdb.ref(`peer_rooms/${path}/${currentRoomId}`).update(isHost ? {hostCamOn: isCamOn} : {guestCamOn: isCamOn});
+        }
     }
 
     function leaveMatch() {
         const path = roomType === 'random' ? 'random' : 'private';
         if (currentRoomId) {
             const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
-            ref.off(); if (isHost) ref.remove(); else ref.update({ status: 'waiting', guestId: null });
+            ref.off();
+            if (isHost) ref.remove();
+            else ref.update({ status: 'waiting', guestId: null });
         }
         if (remoteCall) remoteCall.close();
         if (localStream) localStream.getTracks().forEach(t => t.stop());
         if (peer) peer.destroy();
+
+        // RESET UI VỀ BAN ĐẦU
         document.getElementById('peer-call-container').classList.add('hidden');
         document.getElementById('peer-lobby-container').classList.remove('hidden');
+        document.getElementById('remote-cam-off-overlay').classList.add('hidden');
+        document.getElementById('video-placeholder').classList.remove('hidden');
+        
         peer = null; localStream = null; remoteCall = null; currentRoomId = null; isHost = false;
-        S_Notify.alert("Đã kết thúc cuộc gọi");
+        S_Notify.alert("Đã rời cuộc gọi");
     }
 
     async function toggleFullscreen() {
         const wrapper = document.getElementById('video-wrapper');
         const video = document.getElementById('remote-video');
         const icon = document.getElementById('fullscreen-icon');
+
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
             try {
                 if (wrapper.requestFullscreen) await wrapper.requestFullscreen();
                 else if (wrapper.webkitRequestFullscreen) await wrapper.webkitRequestFullscreen();
                 else if (video.webkitEnterFullscreen) await video.webkitEnterFullscreen();
+                
                 if (icon) icon.className = "fa-solid fa-compress text-white text-lg";
             } catch (e) { console.error(e); }
         } else {
