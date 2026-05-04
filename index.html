@@ -198,10 +198,11 @@
     inset: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    height: -webkit-fill-available !important;
+    height: -webkit-fill-available !important; /* Quan trọng cho Safari */
     z-index: 99999 !important;
     background: #000 !important;
     display: flex !important;
+    flex-direction: column !important; /* Xếp theo chiều dọc */
     align-items: center !important;
     justify-content: center !important;
 }
@@ -212,18 +213,22 @@ body.is-fullscreen nav {
 }
 
 /* Điều chỉnh tỷ lệ video khi ở chế độ giả lập */
-.ios-fake-fullscreen video#remote-video {
+.ios-fake-fullscreen #remote-video {
     width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important; 
-    background: #000;
+    height: auto !important;
+    max-height: 80vh !important; /* Chừa chỗ cho nút bấm bên dưới */
+    object-fit: contain !important;
 }
 
-@media screen and (orientation: landscape) {
-    .ios-fake-fullscreen #room-id-badge,
-    .ios-fake-fullscreen nav { 
-        display: none !important; 
-    }
+/* Đẩy các nút điều khiển lên trên thanh công cụ của trình duyệt */
+.ios-fake-fullscreen .bottom-8 {
+    bottom: 15% !important; /* Đẩy lên cao hơn để không bị dính thanh điều hướng Safari */
+}
+
+.ios-fake-fullscreen #room-id-badge {
+    top: 10% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
 }
 
 /* Chế độ Mobile gọi Mobile: Video dọc sẽ tràn màn hình dọc */
@@ -1182,7 +1187,6 @@ async function toggleFullscreen() {
     const wrapper = document.getElementById('video-wrapper');
     const icon = document.getElementById('fullscreen-icon');
     const body = document.body;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     const isCurrentlyFull = document.fullscreenElement || 
                             document.webkitFullscreenElement || 
@@ -1190,27 +1194,24 @@ async function toggleFullscreen() {
 
     if (!isCurrentlyFull) {
         body.classList.add('is-fullscreen');
-        if (wrapper.requestFullscreen) {
-            wrapper.requestFullscreen();
-        } else if (wrapper.webkitRequestFullscreen) {
-            wrapper.webkitRequestFullscreen();
-        } else {
+        
+        // Nếu là mobile, ưu tiên dùng Fake Fullscreen dọc
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
             wrapper.classList.add('ios-fake-fullscreen');
+        } else {
+            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
         }
         
-        if (screen.orientation && screen.orientation.lock) {
-            await screen.orientation.lock('landscape').catch(() => {});
-        }
         icon.className = "fa-solid fa-compress text-white text-lg";
+        S_Notify.alert("Đã tối ưu màn hình dọc");
     } else {
         body.classList.remove('is-fullscreen');
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         wrapper.classList.remove('ios-fake-fullscreen');
-        
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-        }
         icon.className = "fa-solid fa-expand text-white text-lg";
     }
 }
