@@ -286,6 +286,55 @@ video {
     position: relative;
     background: #000;
 }
+
+/* Tối ưu hóa giao diện gọi cho Mobile */
+@media (max-width: 768px) {
+    /* 1. Cho khung video cao hơn trên mobile để có không gian */
+    #video-wrapper:not(.ios-fake-fullscreen) {
+        aspect-ratio: 3/4 !important; /* Thay vì 16:9, dùng 3:4 để khung hình dọc hơn */
+        height: auto !important;
+        max-height: 60vh;
+    }
+
+    /* 2. Thu nhỏ các nút điều khiển chính */
+    #video-wrapper .absolute.bottom-8 {
+        bottom: 1.5rem !important; /* Đẩy sát xuống đáy hơn */
+        gap: 1rem !important;
+    }
+
+    #video-wrapper .absolute.bottom-8 button {
+        width: 2.75rem !important; /* Thu nhỏ nút từ w-12 xuống còn khoảng w-11 */
+        height: 2.75rem !important;
+        font-size: 0.875rem;
+    }
+
+    /* 3. Thu nhỏ khung video nhỏ của mình (Local Video) */
+    #video-wrapper .absolute.bottom-6.right-6 {
+        width: 80px !important; /* Thu nhỏ khung hình nhỏ */
+        bottom: 5rem !important; /* Đẩy nó lên trên hàng nút bấm để không chồng nhau */
+        right: 1rem !important;
+        border-radius: 12px !important;
+    }
+
+    /* 4. Thu nhỏ các nhãn trạng thái và nút phóng to */
+    #video-wrapper .absolute.top-6 {
+        top: 1rem !important;
+        left: 1rem !important;
+    }
+    
+    #fullscreen-btn {
+        top: 1rem !important;
+        right: 1rem !important;
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+    }
+
+    #room-id-badge {
+        top: 4.5rem !important;
+        left: 1rem !important;
+    }
+}
+
     </style>
 </head>
 <body class="selection:bg-indigo-500/30">
