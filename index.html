@@ -732,47 +732,92 @@ let currentCursor = 0;
 
     // ================= 2. PEER LOGIC =================
     let peer, localStream, remoteCall;
+    let myPeerId = null;
 
     async function createOrJoinRoom() {
-    const roomId = document.getElementById('peer-roomid').value.trim();
-    if (!roomId) return S_Notify.alert("Vui lòng nhập mã phòng!", "error");
+        const roomId = document.getElementById('peer-roomid').value.trim();
+        if (!roomId) return S_Notify.alert("Vui lòng nhập mã phòng!", "error");
 
-    try {
-        // Lấy stream kèm cả Video và Audio
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: true, 
-            video: { width: 1280, height: 720 } 
+        try {
+            // 1. Lấy quyền Camera/Mic
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true, 
+                video: { width: 1280, height: 720 } 
+            });
+
+            // Cập nhật UI
+            document.getElementById('peer-lobby-container').classList.add('hidden');
+            document.getElementById('peer-call-container').classList.remove('hidden');
+            document.getElementById('local-video').srcObject = localStream;
+            document.getElementById('partner-id-display').innerText = `Đang kết nối phòng: ${roomId}`;
+            
+            // Kích hoạt hiệu ứng Mic glow
+            startVolumeMeter(localStream);
+
+            // 2. Khởi tạo Peer với ID ngẫu nhiên (để tránh trùng lặp)
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                console.log("My Peer ID:", myPeerId);
+                handleRoomCoordination(roomId);
+            });
+
+            // 3. Xử lý khi có cuộc gọi đến (Dành cho Chủ phòng)
+            peer.on('call', call => {
+                remoteCall = call;
+                call.answer(localStream);
+                call.on('stream', remoteStream => {
+                    const remoteVideo = document.getElementById('remote-video');
+                    remoteVideo.srcObject = remoteStream;
+                    document.getElementById('video-placeholder').classList.add('hidden');
+                });
+                S_Notify.alert("Đã kết nối với đối tác!");
+            });
+
+        } catch (e) {
+            console.error(e);
+            S_Notify.alert("Lỗi truy cập thiết bị hoặc kết nối!", "error");
+        }
+    }
+
+    async function handleRoomCoordination(roomId) {
+    const roomRef = rdb.ref(`calls/${roomId}`);
+    
+    // Kiểm tra xem phòng đã có ai chưa
+    const snapshot = await roomRef.once('value');
+    const roomData = snapshot.val();
+
+    if (!roomData) {
+        // TRƯỜNG HỢP 1: Bạn là người đầu tiên (Chủ phòng)
+        await roomRef.set({
+            hostId: myPeerId,
+            status: 'waiting',
+            createdAt: Date.now()
         });
-
-        document.getElementById('peer-lobby-container').classList.add('hidden');
-        document.getElementById('peer-call-container').classList.remove('hidden');
-        document.getElementById('local-video').srcObject = localStream;
-        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId}`;
         
-        // Kích hoạt hiệu ứng vang theo giọng nói
-        startVolumeMeter(localStream);
+        // Khi bạn tắt trình duyệt, tự động xóa phòng
+        roomRef.onDisconnect().remove();
+        
+        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Đang chờ...)`;
+    } else {
+        // TRƯỜNG HỢP 2: Đã có người trong phòng (Bạn là Khách)
+        const hostId = roomData.hostId;
+        
+        if (hostId === myPeerId) return; // Tránh tự gọi chính mình
 
-        peer = new Peer(roomId);
-        peer.on('call', call => {
-            call.answer(localStream);
-            call.on('stream', remoteStream => {
-                document.getElementById('remote-video').srcObject = remoteStream;
-                document.getElementById('video-placeholder').classList.add('hidden');
-            });
-            remoteCall = call;
+        // Thực hiện cuộc gọi tới Chủ phòng
+        const call = peer.call(hostId, localStream);
+        remoteCall = call;
+
+        call.on('stream', remoteStream => {
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.srcObject = remoteStream;
+            document.getElementById('video-placeholder').classList.add('hidden');
         });
 
-        peer.on('open', (id) => {
-            const call = peer.call(roomId, localStream);
-            call.on('stream', remoteStream => {
-                document.getElementById('remote-video').srcObject = remoteStream;
-                document.getElementById('video-placeholder').classList.add('hidden');
-            });
-            remoteCall = call;
-        });
-
-    } catch (e) {
-        S_Notify.alert("Không thể mở Camera/Mic. Hãy kiểm tra quyền truy cập!", "error");
+        document.getElementById('partner-id-display').innerText = `Phòng: ${roomId} (Đã kết nối)`;
+        S_Notify.alert("Đang gọi cho chủ phòng...");
     }
 }
 
@@ -813,6 +858,11 @@ function toggleCamera() {
 
 // --- TRONG HÀM hangUp() ---
 function hangUp() {
+    const roomId = document.getElementById('peer-roomid').value.trim();
+    if (roomId) {
+        rdb.ref(`calls/${roomId}`).remove(); // Xóa phòng trên Database
+    }
+
     if (remoteCall) remoteCall.close();
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     if (peer) peer.destroy();
@@ -825,13 +875,7 @@ function hangUp() {
     document.getElementById('local-video').srcObject = null;
     document.getElementById('video-placeholder').classList.remove('hidden');
     
-    // Reset trạng thái nút về mặc định
     isMicOn = true; isCamOn = true;
-    document.getElementById('toggle-mic').className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
-    document.getElementById('mic-icon').className = 'fa-solid fa-microphone text-lg text-white';
-    document.getElementById('toggle-cam').className = 'w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all';
-    document.getElementById('cam-icon').className = 'fa-solid fa-video text-lg text-white';
-
     S_Notify.alert("Đã kết thúc cuộc gọi");
 }
 
