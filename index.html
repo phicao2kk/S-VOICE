@@ -287,11 +287,22 @@ video {
     background: #000;
 }
 
+/* Điều chỉnh riêng cho Mobile (Dọc 3:4 hoặc 9:16) */
 @media (max-width: 768px) {
-    /* 1. Cho khung video cao lên để không gian rộng hơn */
+    #video-wrapper .absolute.bottom-6.right-6 {
+        bottom: 80px !important; /* Đẩy lên trên các nút điều khiển */
+        right: 12px !important;
+        width: 80px !important; /* Thu nhỏ lại trên mobile */
+        aspect-ratio: 3 / 4 !important; /* Tỉ lệ dọc cho Mobile */
+    }
+
+    #local-video {
+        object-fit: cover !important;
+    }
+
     #video-wrapper:not(.ios-fake-fullscreen) {
-        aspect-ratio: 9/16 !important; /* Tỉ lệ dọc giúp nút nằm dưới cằm, không che mặt */
-        max-height: 70vh;
+        aspect-ratio: 9 / 16 !important;
+        max-height: 75vh;
     }
 
     /* 2. Đẩy nút phóng to sang bên PHẢI (như bạn yêu cầu) */
@@ -306,16 +317,20 @@ video {
 
     /* 3. Hạ thấp các nút Mic/Cam/X xuống sát đáy nhất có thể */
     #video-wrapper .absolute.bottom-8 {
-        bottom: 10px !important;
-        gap: 15px !important;
+        bottom: 15px !important;
     }
 
     /* 4. Thu nhỏ khung video của mình và đặt phía trên nút điều khiển */
     #video-wrapper .absolute.bottom-6.right-6 {
-        bottom: 75px !important;
-        right: 10px !important;
-        width: 85px !important;
-        height: auto !important;
+        bottom: 24px;
+        right: 24px;
+        width: 200px;
+        aspect-ratio: 16 / 9 !important; /* Tỉ lệ ngang cho PC */
+        height: auto;
+        z-index: 20;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        overflow: hidden;
     }
 
     /* 5. Nhãn trạng thái thu nhỏ lại cho gọn */
@@ -516,10 +531,6 @@ video {
                     <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                     <p id="waiting-msg" class="mt-6 text-[10px] font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác...</p>
                 </div>
-
-                <button id="fullscreen-btn" onclick="toggleFullscreen()" class="absolute top-6 right-6 w-12 h-12 rounded-full pill-glass flex items-center justify-center z-[100] active:scale-90 transition-transform">
-                    <i id="fullscreen-icon" class="fa-solid fa-expand text-white text-lg"></i>
-                </button>
 
                 <div class="absolute top-6 left-6 bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-[2px] z-30 flex items-center gap-2 text-white">
                     <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -1246,73 +1257,6 @@ function leaveMatch() {
     S_Notify.alert("Đã kết thúc cuộc gọi");
 }
 
-async function toggleFullscreen() {
-    const wrapper = document.getElementById('video-wrapper');
-    const icon = document.getElementById('fullscreen-icon');
-    const body = document.body;
-
-    const isCurrentlyFull = document.fullscreenElement || 
-                            document.webkitFullscreenElement || 
-                            wrapper.classList.contains('ios-fake-fullscreen');
-
-    if (!isCurrentlyFull) {
-        body.classList.add('is-fullscreen');
-        
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-            // QUAN TRỌNG: Xóa class aspect-video để thẻ div không bị ép tỉ lệ ngang 16:9
-            wrapper.classList.remove('aspect-video');
-            wrapper.classList.add('ios-fake-fullscreen');
-        } else {
-            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
-            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
-        }
-        
-        icon.className = "fa-solid fa-compress text-white text-lg";
-    } else {
-        body.classList.remove('is-fullscreen');
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        
-        wrapper.classList.remove('ios-fake-fullscreen');
-        // Trả lại class tỉ lệ ngang khi quay về màn hình thường
-        wrapper.classList.add('aspect-video');
-        
-        icon.className = "fa-solid fa-expand text-white text-lg";
-    }
-}
-
-function handleFullscreenUI() {
-    const wrapper = document.getElementById('video-wrapper');
-    const icon = document.getElementById('fullscreen-icon');
-    
-    // Kiểm tra xem có đang ở Fullscreen thật (chuẩn hoặc webkit) không
-    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-
-    if (!isFull) {
-        // Nếu trình duyệt thoát Fullscreen thật (do nhấn Esc hoặc nút hệ thống)
-        // thì ta dọn dẹp luôn cả trạng thái giả lập của iPhone
-        wrapper.classList.remove('ios-fake-fullscreen');
-        document.body.classList.remove('is-fullscreen');
-        if(icon) icon.className = "fa-solid fa-expand text-white text-lg";
-        
-        // Mở khóa xoay màn hình
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-        }
-    } else {
-        // Nếu đang ở Fullscreen thật
-        if(icon) icon.className = "fa-solid fa-compress text-white text-lg";
-    }
-}
-
-// 2. Đăng ký sự kiện lắng nghe cho mọi trình duyệt
-document.addEventListener('fullscreenchange', handleFullscreenUI);
-document.addEventListener('webkitfullscreenchange', handleFullscreenUI);
-document.addEventListener('mozfullscreenchange', handleFullscreenUI); // Cho Firefox cũ
-document.addEventListener('MSFullscreenChange', handleFullscreenUI); // Cho IE/Edge cũ
-
     // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks=[], communityBlob=null;
     const recStart = document.getElementById('rec-post-start');
@@ -1461,28 +1405,6 @@ document.addEventListener('MSFullscreenChange', handleFullscreenUI); // Cho IE/E
         animationId = requestAnimationFrame(update);
     }
     update();
-}
-
-// LẮNG NGHE SỰ KIỆN TOÀN MÀN HÌNH ĐỂ ĐỔI ICON
-document.addEventListener('fullscreenchange', handleFullscreenUI);
-document.addEventListener('webkitfullscreenchange', handleFullscreenUI);
-
-function handleFullscreenUI() {
-    const icon = document.getElementById('fullscreen-icon');
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        // ĐANG Ở CHẾ ĐỘ TOÀN MÀN HÌNH -> Đổi sang icon Thu nhỏ
-        icon.classList.remove('fa-up-right-and-down-left-from-center');
-        icon.classList.add('fa-down-left-and-up-right-to-center');
-    } else {
-        // ĐANG Ở CHẾ ĐỘ THƯỜNG -> Đổi sang icon Phóng to
-        icon.classList.remove('fa-down-left-and-up-right-to-center');
-        icon.classList.add('fa-up-right-and-down-left-from-center');
-        
-        // Mở khóa xoay màn hình khi thoát
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-        }
-    }
 }
 
 </script>
