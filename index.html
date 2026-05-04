@@ -848,6 +848,8 @@ let currentCursor = 0;
 
     async function startMatching(type) {
         roomType = type;
+        isMicOn = true; // RESET LẠI BIẾN
+        isCamOn = true; // RESET LẠI BIẾN
         let privateId = document.getElementById('peer-roomid-input').value.trim();
         if (type === 'private' && !privateId) return S_Notify.alert("Nhập mã phòng riêng!", "error");
 
@@ -923,19 +925,21 @@ let currentCursor = 0;
             const placeholder = document.getElementById('video-placeholder');
             const remoteOverlay = document.getElementById('remote-cam-off-overlay');
 
-            // NẾU PHÒNG TRỐNG (ĐANG CHỜ)
             if (data.status === 'waiting') {
+                // KHI ĐANG CHỜ: Ẩn thông báo tắt Cam, hiện bảng xoay loading
                 placeholder.classList.remove('hidden');
-                remoteOverlay.classList.add('hidden'); // PHẢI ẨN CÁI NÀY ĐI KHI ĐANG CHỜ
+                remoteOverlay.classList.add('hidden'); 
                 document.getElementById('remote-video').srcObject = null;
                 document.getElementById('partner-status-display').innerText = "Đang chờ đối tác...";
                 if (remoteCall) remoteCall.close();
             } else {
-                // ĐÃ CÓ NGƯỜI VÔ
+                // KHI ĐÃ KẾT NỐI
                 document.getElementById('partner-status-display').innerText = "Đã kết nối";
                 
-                // Kiểm tra trạng thái Cam của đối phương
+                // Kiểm tra Camera của đối phương
                 const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
+                
+                // Chỉ hiện overlay tắt cam nếu partnerCam thực sự bằng false
                 if (partnerCam === false) {
                     remoteOverlay.classList.remove('hidden');
                 } else {
@@ -989,22 +993,39 @@ let currentCursor = 0;
         const path = roomType === 'random' ? 'random' : 'private';
         if (currentRoomId) {
             const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
-            ref.off();
-            if (isHost) ref.remove();
-            else ref.update({ status: 'waiting', guestId: null });
+            ref.off(); // Ngừng lắng nghe để tránh lỗi loop
+
+            if (isHost) {
+                // Nếu mình là chủ phòng thì xóa luôn phòng
+                ref.remove();
+            } else {
+                // Nếu mình là khách thì reset phòng về trạng thái chờ và reset luôn trạng thái CAM
+                ref.update({ 
+                    status: 'waiting', 
+                    guestId: null,
+                    hostCamOn: true,  // Reset lại trạng thái cam
+                    guestCamOn: true  // Reset lại trạng thái cam
+                });
+            }
         }
+
         if (remoteCall) remoteCall.close();
         if (localStream) localStream.getTracks().forEach(t => t.stop());
         if (peer) peer.destroy();
 
-        // RESET UI VỀ BAN ĐẦU
+        // Dọn dẹp UI
         document.getElementById('peer-call-container').classList.add('hidden');
         document.getElementById('peer-lobby-container').classList.remove('hidden');
         document.getElementById('remote-cam-off-overlay').classList.add('hidden');
         document.getElementById('video-placeholder').classList.remove('hidden');
+        document.getElementById('remote-video').srcObject = null;
         
-        peer = null; localStream = null; remoteCall = null; currentRoomId = null; isHost = false;
-        S_Notify.alert("Đã rời cuộc gọi");
+        // Reset biến về mặc định
+        peer = null; localStream = null; remoteCall = null; 
+        currentRoomId = null; isHost = false;
+        isMicOn = true; isCamOn = true; // Luôn để mặc định là BẬT cho lần sau
+
+        S_Notify.alert("Đã rời cuộc gọi và làm sạch phòng");
     }
 
     async function toggleFullscreen() {
