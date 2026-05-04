@@ -289,11 +289,14 @@ video {
 
 /* Tối ưu hóa giao diện gọi cho Mobile */
 @media (max-width: 768px) {
-    /* 1. Cho khung video cao hơn trên mobile để có không gian */
-    #video-wrapper:not(.ios-fake-fullscreen) {
-        aspect-ratio: 3/4 !important; /* Thay vì 16:9, dùng 3:4 để khung hình dọc hơn */
-        height: auto !important;
-        max-height: 60vh;
+    /* Đưa nút phóng to xuống góc dưới bên trái để không bị nhãn đối tác che */
+    #fullscreen-btn {
+        top: auto !important;
+        right: auto !important;
+        bottom: 85px !important; /* Nằm trên hàng nút điều khiển một chút */
+        left: 15px !important;
+        width: 40px !important;
+        height: 40px !important;
     }
 
     /* 2. Thu nhỏ các nút điều khiển chính */
@@ -309,11 +312,12 @@ video {
     }
 
     /* 3. Thu nhỏ khung video nhỏ của mình (Local Video) */
-    #video-wrapper .absolute.bottom-6.right-6 {
-        width: 80px !important; /* Thu nhỏ khung hình nhỏ */
-        bottom: 5rem !important; /* Đẩy nó lên trên hàng nút bấm để không chồng nhau */
-        right: 1rem !important;
-        border-radius: 12px !important;
+    /* Thu nhỏ nhãn trạng thái đối tác một chút */
+    #video-wrapper .absolute.top-6.left-6 {
+        top: 15px !important;
+        left: 15px !important;
+        padding: 4px 10px !important;
+        font-size: 8px !important;
     }
 
     /* 4. Thu nhỏ các nhãn trạng thái và nút phóng to */
@@ -997,6 +1001,7 @@ let currentCursor = 0;
 // ================= 2. PEER LOGIC (BẢN FIX TRIỆT ĐỂ LỖI HIỂN THỊ) =================
     var peer, localStream, remoteCall;
     var myPeerId = null;
+    var isCallConnected = false; // Cờ kiểm tra đã kết nối thành công chưa
     var currentRoomId = null;
     var isHost = false;
     var roomType = 'random'; 
@@ -1060,40 +1065,52 @@ let currentCursor = 0;
 
 async function findRandomMatch() {
     const roomsRef = rdb.ref('peer_rooms/random');
+    
+    // 1. Kiểm tra xem Peer ID của mình đã sẵn sàng chưa, nếu chưa đợi 1s rồi thử lại
+    if (!myPeerId) {
+        setTimeout(findRandomMatch, 1000);
+        return;
+    }
+
     const snapshot = await roomsRef.orderByChild('status').equalTo('waiting').limitToFirst(1).once('value');
     const rooms = snapshot.val();
 
     if (rooms) {
-        currentRoomId = Object.keys(rooms)[0]; 
+        currentRoomId = Object.keys(rooms)[0];
+        const targetHostId = rooms[currentRoomId].hostId;
+
+        // Tránh tự gọi chính mình nếu bị kẹt phòng cũ
+        if (targetHostId === myPeerId) {
+            await roomsRef.child(currentRoomId).remove();
+            findRandomMatch();
+            return;
+        }
+
         isHost = false;
-        const roomRef = roomsRef.child(currentRoomId);
-
-        // KHI GUEST THOÁT ĐỘT NGỘT: Đưa phòng về trạng thái chờ
-        roomRef.onDisconnect().update({ 
-            status: 'waiting', 
-            guestId: null, 
-            guestDevice: null 
-        });
-
-        await roomRef.update({ 
+        await roomsRef.child(currentRoomId).update({ 
             status: 'occupied', 
             guestId: myPeerId,
-            guestCamOn: true,
             guestDevice: getDeviceType() 
         });
         
-        remoteCall = peer.call(rooms[currentRoomId].hostId, localStream);
+        // Gọi cho Host
+        remoteCall = peer.call(targetHostId, localStream);
         setupCallListeners(remoteCall);
     } else {
-    isHost = true; currentRoomId = myPeerId;
-            const roomRef = roomsRef.child(currentRoomId);
-            await roomRef.set({ 
-                hostId: myPeerId, status: 'waiting', hostCamOn: true, hostDevice: getDeviceType() 
-            });
-            roomRef.onDisconnect().remove(); // Host mất mạng thì xóa phòng
-        }
-        observeRoom(roomsRef.child(currentRoomId));
+        // Nếu không có phòng nào chờ, mình làm Host
+        isHost = true;
+        currentRoomId = myPeerId;
+        await roomsRef.child(currentRoomId).set({ 
+            hostId: myPeerId, 
+            status: 'waiting', 
+            hostDevice: getDeviceType(),
+            createdAt: Date.now() 
+        });
+        roomsRef.child(currentRoomId).onDisconnect().remove();
+    }
+    observeRoom(roomsRef.child(currentRoomId));
 }
+
 async function enterPrivateRoom(roomId) {
     currentRoomId = roomId;
     const roomRef = rdb.ref(`peer_rooms/private/${roomId}`);
@@ -1127,36 +1144,28 @@ async function enterPrivateRoom(roomId) {
         });
     }
 
-    function observeRoom(ref) {
+function observeRoom(ref) {
     ref.on('value', (snap) => {
         const data = snap.val(); 
         const placeholder = document.getElementById('video-placeholder');
-        const remoteVideo = document.getElementById('remote-video');
-        const statusDisplay = document.getElementById('partner-status-display');
+        const waitingMsg = document.getElementById('waiting-msg');
 
-        if (!data) {
-            leaveMatch();
-            return;
-        }
+        if (!data) { leaveMatch(); return; }
 
         if (data.status === 'waiting') {
-            // ĐỐI PHƯƠNG THOÁT (Dù là tắt web hay kill app)
-            if (remoteVideo.srcObject) {
-                remoteVideo.srcObject.getTracks().forEach(t => t.stop()); // Dừng stream cũ
-                remoteVideo.srcObject = null; // Xóa hình ảnh treo
+            // Nếu chưa từng kết nối (isCallConnected = false) thì hiện "Đang tìm"
+            // Nếu đã kết nối rồi mà đối phương thoát thì mới hiện "Đã rời đi"
+            if (!isCallConnected) {
+                waitingMsg.innerText = "Đang tìm kiếm đối tác phù hợp...";
+            } else {
+                waitingMsg.innerText = "Đối tác đã rời đi. Đang chờ người mới...";
+                if (remoteVideo.srcObject) remoteVideo.srcObject = null;
             }
-            
-            placeholder.classList.remove('hidden'); // Hiện lại màn hình chờ
-            document.getElementById('waiting-msg').innerText = "Đối tác đã rời đi. Đang chờ người mới...";
-            statusDisplay.innerText = "Trạng thái: Đang chờ...";
-
-            // Nếu mình là khách mà host thoát (phòng biến mất/reset), thì mình cũng ra ngoài
-            if (!isHost) leaveMatch();
+            placeholder.classList.remove('hidden');
         } 
         else if (data.status === 'occupied') {
-            const partnerDevice = isHost ? data.guestDevice : data.hostDevice;
-            statusDisplay.innerText = `Đối tác: ${partnerDevice ? partnerDevice.toUpperCase() : '...'}`;
-            // Placeholder sẽ tự ẩn khi setupCallListeners nhận được 'stream'
+            // Khi trạng thái là occupied, chuẩn bị kết nối
+            // Placeholder sẽ ẩn khi nhận được stream (trong setupCallListeners)
         }
 
         const partnerCam = isHost ? data.guestCamOn : data.hostCamOn;
@@ -1164,12 +1173,12 @@ async function enterPrivateRoom(roomId) {
     });
 }
 
-    function setupCallListeners(call) {
+function setupCallListeners(call) {
     call.on('stream', stream => {
+        isCallConnected = true; // Đánh dấu đã kết nối thành công
         const remoteVideo = document.getElementById('remote-video');
         if (remoteVideo) {
             remoteVideo.srcObject = stream;
-            // CHỈ ẩn bảng chờ khi luồng video đã sẵn sàng
             remoteVideo.onloadedmetadata = () => {
                 document.getElementById('video-placeholder').classList.add('hidden');
             };
@@ -1208,6 +1217,7 @@ async function enterPrivateRoom(roomId) {
     }
 
 function leaveMatch() {
+    isCallConnected = false; // Reset lại cờ khi thoát
     const path = roomType === 'random' ? 'random' : 'private';
     if (currentRoomId) {
         const ref = rdb.ref(`peer_rooms/${path}/${currentRoomId}`);
