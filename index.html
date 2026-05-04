@@ -288,10 +288,23 @@ video {
 }
 
 @media (max-width: 768px) {
-    /* 1. Cho khung video cao lên để không gian rộng hơn */
     #video-wrapper:not(.ios-fake-fullscreen) {
-        aspect-ratio: 9/16 !important; /* Tỉ lệ dọc giúp nút nằm dưới cằm, không che mặt */
+        aspect-ratio: 9/16 !important;
         max-height: 70vh;
+    }
+
+    .pc-call {
+        aspect-ratio: 16 / 9;
+    }
+    .mobile-call {
+        aspect-ratio: 9 / 16;
+    }
+    /* Điều chỉnh video cho phù hợp */
+    .mobile-call #remote-video {
+        object-fit: cover;
+    }
+    .pc-call #remote-video {
+        object-fit: contain;
     }
 
     /* 2. Đẩy nút phóng to sang bên PHẢI (như bạn yêu cầu) */
@@ -516,10 +529,6 @@ video {
                     <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                     <p id="waiting-msg" class="mt-6 text-[10px] font-black uppercase tracking-[4px] text-indigo-400">Đang chờ đối tác...</p>
                 </div>
-
-                <button id="fullscreen-btn" onclick="toggleFullscreen()" class="absolute top-6 right-6 w-12 h-12 rounded-full pill-glass flex items-center justify-center z-[100] active:scale-90 transition-transform">
-                    <i id="fullscreen-icon" class="fa-solid fa-expand text-white text-lg"></i>
-                </button>
 
                 <div class="absolute top-6 left-6 bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-[2px] z-30 flex items-center gap-2 text-white">
                     <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -1027,6 +1036,14 @@ let currentCursor = 0;
 
         document.getElementById('peer-lobby-container').classList.add('hidden');
         document.getElementById('peer-call-container').classList.remove('hidden');
+        const wrapper = document.getElementById('video-wrapper');
+        if (getDeviceType() === 'mobile') {
+            wrapper.classList.add('mobile-call');
+            wrapper.classList.remove('pc-call');
+        } else {
+            wrapper.classList.add('pc-call');
+            wrapper.classList.remove('mobile-call');
+        }
         document.getElementById('local-video').srcObject = localStream;
         
         document.getElementById('video-placeholder').classList.remove('hidden');
@@ -1231,6 +1248,7 @@ function leaveMatch() {
     document.getElementById('video-wrapper').classList.remove('ios-fake-fullscreen');
     document.body.classList.remove('is-fullscreen');
     document.getElementById('peer-call-container').classList.add('hidden');
+    document.getElementById('video-wrapper').classList.remove('mobile-call', 'pc-call');
     document.getElementById('peer-lobby-container').classList.remove('hidden');
     document.getElementById('remote-video').srcObject = null;
 
