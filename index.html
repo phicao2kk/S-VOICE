@@ -969,7 +969,6 @@ body:not(.recording-active) .wave-bar {
     }
     
     const rdb = firebase.database();
-    const storage = firebase.storage();
     
 let isLoginMode = true;
 let currentSanitizedKey = null; // Biến lưu Key của người dùng hiện tại
@@ -1919,16 +1918,15 @@ document.getElementById('clear-audio-btn')?.addEventListener('click', () => {
     }
     
     await rdb.ref('s_talk/community').push().set({
-    title: title,
-    desc: desc,
-    audioBase64: audioData,
-    author: author,
-    authorId: currentSanitizedKey,   // ← thêm dòng này
-    reactions: { like: 0, heart: 0, haha: 0 },
-    userReacts: {},
-    comments: [],
-    createdAt: Date.now()
-});
+        title: title,
+        desc: desc,
+        audioBase64: audioData,   // có thể null
+        author: author,
+        reactions: { like: 0, heart: 0, haha: 0 },
+        userReacts: {},
+        comments: [],
+        createdAt: Date.now()
+    });
     
     S_Notify.alert("Đã đăng bài viết lên bảng tin!");
     // Reset form
@@ -2046,9 +2044,7 @@ function loadCommunityPosts() {
         Object.entries(posts).reverse().forEach(([id, post]) => {
             if (post.archived === true) return;
             
-            const myEmail = localStorage.getItem('svoice_session');
-            const myName = localStorage.getItem('svoice_fullname');
-            const isMyPost = (post.authorId === myEmail) || (post.author === myName);
+            const isMyPost = (post.author === myId);
             const isSaved = savedPosts.includes(id);
             const isMuted = mutedPosts.includes(id);
             const likeCount = post.reactions?.like || 0;
@@ -2138,46 +2134,24 @@ function loadCommunityPosts() {
                         <i class="fa-regular fa-face-grin-tongue-squint"></i> <span>Haha</span> <span class="react-count">${hahaCount || ''}</span>
                     </button>
                 </div>
-                <div class="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar relative p-1 pb-20">
-                    ${comments.map((c, idx) => {
-                        let author, text, commentId;
+                <div class="space-y-3 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    ${comments.map(c => {
+                        // Nếu comment là string (cũ) -> chuyển về object với author mặc định
+                        let author, text;
                         if (typeof c === 'string') {
                             author = '@Feedback:';
                             text = c;
-                            commentId = `old_${idx}`;
                         } else {
                             author = c.author || '@Feedback:';
                             text = c.text;
-                            commentId = c.commentId || `ts_${idx}`;
                         }
                         const avatarLetter = (author === '@Feedback:' ? 'F' : author.charAt(0).toUpperCase());
-                        const isCommentOwner = (author === myName); // dùng tên hiển thị so sánh
-                        const isPostOwner = (post.author === myName); // chủ bài đăng
-                        const canDeleteComment = isCommentOwner || isPostOwner;
                         return `
-                            <div class="flex gap-2 items-start relative group comment-item mb-2" data-comment-idx="${idx}">
+                            <div class="flex gap-2 items-start">
                                 <div class="w-6 h-6 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-[8px] font-bold">${avatarLetter}</div>
-                                <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1 min-w-0 break-words">
+                                <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1">
                                     <span class="font-bold text-indigo-300 mr-2">${escapeHtml(author)}:</span> ${escapeHtml(text)}
                                 </div>
-                                
-                                ${canDeleteComment ? `
-                                <div class="relative flex-shrink-0">
-                                    <button class="comment-menu-btn p-1.5 text-slate-500 hover:text-white transition-all rounded-lg active:bg-white/10" 
-                                            data-comment-idx="${idx}" data-post-id="${id}">
-                                        <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
-                                    </button>
-                                    
-                                    <!-- Menu được chỉnh lại z-index cực cao và vị trí -->
-                                    <div id="comment-menu-${id}-${idx}" 
-                                        class="absolute right-0 top-full mt-1 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-[9999] hidden min-w-[120px] overflow-hidden">
-                                        <button class="delete-comment-btn w-full text-left px-4 py-3 text-[10px] font-black text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2" 
-                                                data-post-id="${id}" data-comment-idx="${idx}">
-                                            <i class="fa-regular fa-trash-can"></i> XÓA BÌNH LUẬN
-                                        </button>
-                                    </div>
-                                </div>
-                                ` : ''}
                             </div>
                         `;
                     }).join('')}
@@ -2197,7 +2171,6 @@ function loadCommunityPosts() {
 }
 
 function attachDynamicEvents() {
-    // Post menu
     document.querySelectorAll('.post-menu-btn').forEach(btn => {
         btn.removeEventListener('click', toggleMenu);
         btn.addEventListener('click', toggleMenu);
@@ -2214,6 +2187,10 @@ function attachDynamicEvents() {
         btn.removeEventListener('click', handleMutePost);
         btn.addEventListener('click', handleMutePost);
     });
+    document.querySelectorAll('.archive-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleArchivePost);
+        btn.addEventListener('click', handleArchivePost);
+    });
     document.querySelectorAll('.delete-post-btn').forEach(btn => {
         btn.removeEventListener('click', handleDeletePost);
         btn.addEventListener('click', handleDeletePost);
@@ -2226,56 +2203,7 @@ function attachDynamicEvents() {
         btn.removeEventListener('click', handleSendComment);
         btn.addEventListener('click', handleSendComment);
     });
-
-    // Comment menu – KHÔNG clone nữa, gắn trực tiếp
-    document.querySelectorAll('.comment-menu-btn').forEach(btn => {
-    btn.onclick = (e) => toggleCommentMenu(e);
-    });
-
-    // Gán sự kiện cho nút Xóa bên trong menu
-    document.querySelectorAll('.delete-comment-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            const postId = btn.getAttribute('data-post-id');
-            const commentIdx = parseInt(btn.getAttribute('data-comment-idx'));
-            handleDeleteComment(postId, commentIdx);
-        };
-    });
-
-    // Xóa comment
-    document.querySelectorAll('.delete-comment-btn').forEach(btn => {
-        btn.removeEventListener('click', handleDeleteCommentClick);
-        btn.addEventListener('click', handleDeleteCommentClick);
-    });
-
-    // Đóng menu khi click ra ngoài (gộp chung)
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('[id^="comment-menu-"]') && !e.target.closest('.comment-menu-btn')) {
-            document.querySelectorAll('[id^="comment-menu-"]').forEach(menu => menu.classList.add('hidden'));
-        }
-        if (!e.target.closest('.post-menu') && !e.target.closest('.post-menu-btn')) {
-            document.querySelectorAll('.post-menu').forEach(menu => menu.classList.add('hidden'));
-            activeMenuId = null;
-        }
-    });
-
-    document.querySelectorAll('input[id^="cmt-"]').forEach(input => {
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Ngăn việc xuống dòng hoặc load lại trang
-                const postId = this.id.replace('cmt-', '');
-                submitComment(postId);
-            }
-        });
-    });
-}
-
-// Hàm xử lý riêng cho nút xóa comment
-function handleDeleteCommentClick(e) {
-    const btn = e.currentTarget;
-    const postId = btn.getAttribute('data-post-id');
-    const commentIdx = parseInt(btn.getAttribute('data-comment-idx'));
-    handleDeleteComment(postId, commentIdx);
+    document.addEventListener('click', closeAllMenus);
 }
 
 function toggleMenu(e) {
@@ -2453,38 +2381,30 @@ function handleReact(e) {
     });
 }
 
-async function submitComment(postId) {
-    const input = document.getElementById(`cmt-${postId}`);
-    const text = input.value.trim();
-    if (!text) return;
-
-    const author = localStorage.getItem('svoice_fullname') || 
-                   localStorage.getItem('svoice_session') || 
-                   "Người dùng";
-
-    try {
-        await rdb.ref(`s_talk/community/${postId}/comments`).transaction(comments => {
-            comments = comments || [];
-            comments.push({
-                author: author,
-                text: text,
-                timestamp: Date.now()
-            });
-            return comments;
-        });
-        input.value = ''; // Xóa chữ trong ô nhập
-        // S_Notify.alert("Đã gửi góp ý!"); // Có thể tắt thông báo này cho mượt
-    } catch (error) {
-        S_Notify.alert("Lỗi khi gửi bình luận", "error");
-    }
-}
-
-// Sửa lại hàm handleSendComment cũ để gọi hàm submitComment
 function handleSendComment(e) {
     e.stopPropagation();
     const btn = e.currentTarget;
     const postId = btn.getAttribute('data-id');
-    submitComment(postId);
+    const input = document.getElementById(`cmt-${postId}`);
+    const text = input.value.trim();
+    if (!text) return;
+
+    // Lấy tên hiển thị từ localStorage (đã lưu khi đăng nhập)
+    const author = localStorage.getItem('svoice_fullname') || 
+                   localStorage.getItem('svoice_session') || 
+                   "Người dùng";
+
+    rdb.ref(`s_talk/community/${postId}/comments`).transaction(comments => {
+        comments = comments || [];
+        comments.push({
+            author: author,
+            text: text,
+            timestamp: Date.now()
+        });
+        return comments;
+    });
+    input.value = '';
+    S_Notify.alert("Đã gửi góp ý!");
 }
 
 function escapeHtml(str) {
@@ -2760,47 +2680,18 @@ function initCustomAudioPlayers() {
     }
 }
 
-function handleDeleteComment(postId, commentIdx) {
-    S_Notify.confirm("Bạn có chắc muốn xóa bình luận này?", async () => {
-        const commentRef = rdb.ref(`s_talk/community/${postId}/comments`);
-        commentRef.transaction(comments => {
-            if (comments && comments[commentIdx]) {
-                comments.splice(commentIdx, 1);
-            }
-            return comments;
-        });
-        S_Notify.alert("Đã xóa bình luận");
-    });
-}
+// Gắn initCustomAudioPlayers vào các vị trí cần thiết
+// 1. Sau khi render bài viết (trong attachDynamicEvents)
+const originalAttach = attachDynamicEvents;
+attachDynamicEvents = function() {
+    originalAttach();
+    initCustomAudioPlayers();
+};
 
-function toggleCommentMenu(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const btn = e.currentTarget;
-    const postId = btn.getAttribute('data-post-id');
-    const commentIdx = btn.getAttribute('data-comment-idx');
-    const menuId = `comment-menu-${postId}-${commentIdx}`;
-    const menu = document.getElementById(menuId);
-
-    // Đóng tất cả các menu khác
-    document.querySelectorAll('[id^="comment-menu-"]').forEach(m => {
-        if (m.id !== menuId) m.classList.add('hidden');
-    });
-
-    if (menu) {
-        menu.classList.toggle('hidden');
-        
-        // Fix lỗi menu bị chìm dưới các bình luận khác bằng cách tăng z-index của cha
-        const parentItem = btn.closest('.comment-item');
-        if (!menu.classList.contains('hidden')) {
-            parentItem.style.zIndex = "9998";
-        } else {
-            parentItem.style.zIndex = "auto";
-        }
-    }
-}
-
+// 2. Khi preview audio được tạo (sau khi ghi xong)
+// Tìm trong recToggleBtn.onstop, sau dòng reader.onloadend = () => { ... }
+// Thêm: initCustomAudioPlayers();
+// Nếu bạn đã có sẵn thì chỉ cần gọi lại.
 </script>
 
 <!-- Modal chỉnh sửa bài viết -->
