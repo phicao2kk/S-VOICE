@@ -1045,22 +1045,15 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 // 3. Phát hiện DevTools mở bằng cách check kích thước màn hình
 // Nếu người dùng cố tình resize cửa sổ để soi code, trang sẽ trắng xóa
 setInterval(function() {
-    // 1. Kiểm tra xem có phải mobile không
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
     if (!isMobile) {
-        // 2. Nếu là PC mới thực hiện kiểm tra khoảng cách F12
+        // Chỉ check chênh lệch kích thước trên PC
         const widthThreshold = window.outerWidth - window.innerWidth > 160;
         const heightThreshold = window.outerHeight - window.innerHeight > 160;
-
-        // Nếu phát hiện cửa sổ bị thu hẹp bất thường (mở DevTools)
         if (widthThreshold || heightThreshold) {
             window.location.href = "about:blank";
         }
     }
-    
-    // Nếu là Mobile, chúng ta không check height vì bàn phím sẽ làm sai lệch
-    // Mobile thường không có F12 trực tiếp nên không cần quá khắt khe chỗ này
 }, 1000);
 
 // Chặn phím tắt (Vẫn giữ nguyên cho cả 2 thiết bị)
@@ -1198,23 +1191,38 @@ async function handleAuthSubmit() {
 
 // Hàm để vào ứng dụng sau khi xác thực thành công
 function enterApp(userId, displayName, isAutoLogin = false) {
-    currentSanitizedKey = sanitizeKey(userId);
-    localStorage.setItem('svoice_session', userId);
-    localStorage.setItem('svoice_fullname', displayName); // lưu tên hiển thị
-    // MỞ KHÓA: Xóa lớp khóa và thêm lớp cho phép cuộn
+    // 1. Ép ẩn màn hình Auth ngay lập tức
+    const authView = document.getElementById('view-auth');
+    if (authView) {
+        authView.style.display = 'none'; // Ép ẩn bằng style trực tiếp
+        authView.classList.add('hidden');
+    }
+
+    // 2. Mở khóa cuộn trang
     document.body.classList.remove('auth-locked');
     document.body.classList.add('app-ready');
-    resetInactivityTimer();
-    document.getElementById('display-user-id').innerText = displayName; // hiển thị tên thật
+
+    // 3. Thiết lập thông tin
+    currentSanitizedKey = sanitizeKey(userId);
+    localStorage.setItem('svoice_session', userId);
+    localStorage.setItem('svoice_fullname', displayName);
+    
+    document.getElementById('display-user-id').innerText = displayName;
     
     const navArea = document.getElementById('user-nav-area');
-    navArea.classList.remove('hidden');
-    navArea.classList.add('flex');
+    if (navArea) {
+        navArea.classList.remove('hidden');
+        navArea.classList.add('flex');
+    }
 
     if (!isAutoLogin) S_Notify.alert("Truy cập thành công!");
-    watchNotifications();
-    document.getElementById('view-auth').classList.add('hidden');
-    loadShadowingList();
+
+    // 4. Load dữ liệu
+    try {
+        resetInactivityTimer();
+        watchNotifications();
+        loadShadowingList();
+    } catch (e) { console.error(e); }
 }
 
     function getDeviceType() {
