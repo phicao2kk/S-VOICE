@@ -2169,7 +2169,9 @@ function loadCommunityPosts() {
         let savedPosts = JSON.parse(localStorage.getItem('saved_posts') || '[]');
         let mutedPosts = JSON.parse(localStorage.getItem('muted_posts') || '[]');
         
-        Object.entries(posts).reverse().forEach(([id, post]) => {
+        Object.entries(posts)
+        .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0)) // Bài mới nhất (số lớn hơn) lên đầu
+        .forEach(([id, post]) => {
             if (post.archived === true) return;
             
             const myEmail = localStorage.getItem('svoice_session');
@@ -2181,6 +2183,11 @@ function loadCommunityPosts() {
             const heartCount = post.reactions?.heart || 0;
             const hahaCount = post.reactions?.haha || 0;
             const comments = post.comments || [];
+
+            const dateObj = new Date(post.createdAt);
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); // Lấy 14:30
+            const dateStr = dateObj.toLocaleDateString(); // Lấy 05/05/2026
+            const fullTime = `${timeStr} | ${dateStr}`;
 
             const card = document.createElement('div');
             card.className = "bg-white/5 rounded-2xl p-5 border border-white/10 hover:bg-white/10 transition-all duration-200 relative-menu";
@@ -2196,7 +2203,7 @@ function loadCommunityPosts() {
                                 <span class="font-bold text-white text-sm">${escapeHtml(post.author)}</span>
                             </div>
                             <div class="flex items-center gap-1 text-[10px] text-slate-400">
-                                <span>${new Date(post.createdAt).toLocaleDateString()}</span>
+                                <span>${fullTime}</span>
                                 <span>•</span>
                                 <span><i class="fa-solid fa-globe"></i></span>
                             </div>
@@ -2228,9 +2235,7 @@ function loadCommunityPosts() {
                     </div>
                 </div>
                 <div class="mb-2 font-bold text-white text-md">${escapeHtml(post.title)}</div>
-                <div class="mb-3 text-sm text-slate-200 leading-relaxed">
-                    ${escapeHtml(post.desc || 'Không có mô tả.')}
-                </div>
+                <div class="mb-3 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">${escapeHtml(post.desc || 'Không có mô tả.')}</div>
                 ${post.audioBase64 ? `
                 <div class="bg-slate-800/50 rounded-xl p-3 mb-3">
                     <div class="custom-audio-player" data-audio="${post.audioBase64}">
@@ -2283,9 +2288,7 @@ function loadCommunityPosts() {
                         return `
                             <div class="flex gap-2 items-start relative group comment-item mb-2" data-comment-idx="${idx}">
                                 <div class="w-6 h-6 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-[8px] font-bold">${avatarLetter}</div>
-                                <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1 min-w-0 break-words">
-                                    <span class="font-bold text-indigo-300 mr-2">${escapeHtml(author)}:</span> ${escapeHtml(text)}
-                                </div>
+                                <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1 whitespace-pre-wrap min-w-0 break-words"><span class="font-bold text-indigo-300 mr-2">${escapeHtml(author)}:</span> ${escapeHtml(text)}</div>
                                 
                                 ${canDeleteComment ? `
                                 <div class="relative flex-shrink-0">
