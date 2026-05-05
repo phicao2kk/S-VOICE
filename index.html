@@ -32,7 +32,7 @@
             --primary: #6366f1; 
             --accent: #22d3ee; 
             --bg: #020617; 
-            --glass: rgba(15, 23, 42, 0.7);
+            --glass: rgba(15, 23, 42, 0.8);  /* từ 0.7 lên 0.8 */
         }
         
         body { 
@@ -54,11 +54,16 @@
         }
 
         /* Glassmorphism Nâng cao */
-        .glass { 
-            background: var(--glass); 
-            backdrop-filter: blur(20px); 
-            border: 1px solid rgba(255, 255, 255, 0.08); 
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+        }
+
+        .glass:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.6);
         }
 
         /* Nút bấm hiện đại */
@@ -444,6 +449,36 @@ video {
     position: relative;
 }
 
+/* Fix mobile layout cho tab Kết nối mở */
+@media (max-width: 1024px) {
+    #tab-community .lg\:col-span-4.sticky {
+        position: static !important;
+        top: auto !important;
+        margin-bottom: 1.5rem;
+    }
+    #tab-community .grid {
+        display: block !important;
+    }
+    #community-posts-list {
+        padding-bottom: 100px;
+    }
+}
+
+/* Hiệu ứng sóng âm thanh */
+@keyframes wave {
+    0% { height: 6px; opacity: 0.4; }
+    100% { height: 32px; opacity: 1; }
+}
+.wave-bar {
+    transition: height 0.1s ease;
+}
+/* Ẩn sóng khi không ghi âm */
+body:not(.recording-active) .wave-bar {
+    animation-play-state: paused;
+    opacity: 0.3;
+    height: 8px !important;
+}
+
 </style>
 </head>
 <body class="selection:bg-indigo-500/30">
@@ -488,6 +523,13 @@ video {
 
             <!-- NHÓM Ô NHẬP ĐĂNG KÝ (Độc lập - Mặc định ẩn) -->
             <div id="register-fields" class="space-y-5 hidden">
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-emerald-400 uppercase font-black tracking-widest">Họ và tên</label>
+                    </div>
+                    <input type="text" id="reg-fullname" placeholder="Nguyễn Văn A" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-emerald-500/50 transition-all">
+                </div>
                 <div class="field-container group">
                     <div class="flex items-center gap-3 mb-2 ml-1">
                         <div class="dot-signal"></div>
@@ -803,13 +845,56 @@ video {
                     <input type="text" id="post-title" placeholder="Tiêu đề bài luyện tập..." class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-sm font-bold text-white focus:border-indigo-500 outline-none transition-all">
                     <textarea id="post-desc" rows="3" placeholder="Bạn muốn mọi người góp ý điều gì? (vd: Cách phát âm, ngữ điệu...)" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-sm text-white focus:border-indigo-500 outline-none transition-all"></textarea>
                     
-                    <div class="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10 text-center">
-                        <p class="text-[8px] font-black text-indigo-400 uppercase mb-3 tracking-[2px]">Thu âm giọng nói của bạn</p>
-                        <div class="flex gap-2">
-                            <button id="rec-post-start" class="flex-1 py-3 bg-white/5 hover:bg-red-500/20 text-white rounded-xl text-[9px] font-black uppercase transition-all border border-white/5"><i class="fa-solid fa-microphone mr-2"></i>Bắt đầu</button>
-                            <button id="rec-post-stop" disabled class="flex-1 py-3 bg-white/5 text-slate-500 rounded-xl text-[9px] font-black uppercase disabled:opacity-30 border border-white/5"><i class="fa-solid fa-stop mr-2"></i>Dừng</button>
+                    <div class="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl border border-indigo-500/20">
+                        <div class="glass p-5 rounded-2xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                                    <p class="text-[9px] font-black text-indigo-400 uppercase tracking-[2px]">Thu âm giọng nói của bạn</p>
+                                </div>
+                                <span id="recording-time" class="text-[10px] text-slate-400 font-mono">00:00</span>
+                            </div>
                         </div>
-                        <audio id="post-audio-preview" controls class="hidden w-full h-8 mt-4 filter invert"></audio>
+                        
+                        <!-- Dạng sóng giả lập -->
+                        <div class="flex items-center justify-center gap-[3px] h-12 mb-4">
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 8px; animation: wave 0.8s ease-in-out infinite alternate;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 16px; animation: wave 0.9s ease-in-out infinite alternate 0.1s;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 24px; animation: wave 1.0s ease-in-out infinite alternate 0.2s;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 32px; animation: wave 1.1s ease-in-out infinite alternate 0.3s;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 28px; animation: wave 1.0s ease-in-out infinite alternate 0.4s;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 18px; animation: wave 0.9s ease-in-out infinite alternate 0.5s;"></div>
+                            <div class="wave-bar w-1 bg-indigo-400/60 rounded-full" style="height: 10px; animation: wave 0.8s ease-in-out infinite alternate 0.6s;"></div>
+                        </div>
+                        
+                        <!-- Nút ghi âm tròn -->
+                        <div class="flex justify-center mb-3">
+                            <button id="rec-toggle-btn" class="w-16 h-16 rounded-full glass ring-1 ring-white/30 shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center">
+                                <i class="fa-solid fa-microphone text-2xl text-white"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Trình phát preview (ẩn ban đầu) -->
+                        <div id="preview-container" class="hidden mt-3 glass p-4 rounded-2xl">
+                            <audio id="post-audio-preview" class="hidden"></audio>
+                            <div class="custom-audio-player" id="preview-audio-player">
+                                <div class="flex items-center gap-3">
+                                    <button id="preview-play-btn" class="w-8 h-8 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 flex items-center justify-center text-indigo-400 transition-all glass ring-1 ring-white/20">
+                                        <i class="fas fa-play text-xs"></i>
+                                    </button>
+                                    <div class="flex-1">
+                                        <div class="relative h-1.5 bg-white/10 rounded-full cursor-pointer progress-timeline">
+                                            <div id="preview-progress-bar" class="absolute left-0 top-0 h-full bg-indigo-500 rounded-full" style="width: 0%"></div>
+                                        </div>
+                                        <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                                            <span id="preview-current-time">00:00</span>
+                                            <span id="preview-duration">00:00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="clear-audio-btn" class="mt-3 w-full py-2 glass rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/20 transition-all">Xoá âm thanh</button>
+                        </div>
                     </div>
                     
                     <button onclick="uploadCommunityPost()" class="btn-main w-full py-4 rounded-2xl text-[10px] font-black tracking-[3px] shadow-indigo-500/20">
@@ -943,19 +1028,26 @@ async function handleAuthSubmit() {
     const email = document.getElementById(emailId).value.trim();
     const pass = document.getElementById(passId).value.trim();
     const confirmPass = document.getElementById('reg-confirm').value.trim();
+    const fullname = document.getElementById('reg-fullname')?.value.trim(); // Lấy họ tên nếu có
 
     if (!email || !pass) {
         return S_Notify.alert("Vui lòng nhập tài khoản và mật khẩu", "error");
     }
 
-    const userKey = sanitizeKey(email); // Hàm sanitizeKey bạn đã có
+    // Nếu là chế độ đăng ký, kiểm tra họ tên
+    if (!isLoginMode && !fullname) {
+        return S_Notify.alert("Vui lòng nhập họ và tên", "error");
+    }
+
+    const userKey = sanitizeKey(email);
 
     if (isLoginMode) {
         // --- LOGIC ĐĂNG NHẬP ---
         rdb.ref('users/' + userKey).once('value', (snapshot) => {
             const userData = snapshot.val();
             if (userData && userData.password === pass) {
-                enterApp(email); // Hàm enterApp bạn đã có
+                const displayName = userData.fullname || email; // fallback nếu tài khoản cũ không có fullname
+                enterApp(email, displayName);
             } else {
                 S_Notify.alert("Tài khoản hoặc mật khẩu không chính xác", "error");
             }
@@ -976,6 +1068,7 @@ async function handleAuthSubmit() {
                 rdb.ref('users/' + userKey).set({
                     email: email,
                     password: pass,
+                    fullname: fullname,
                     createdAt: Date.now()
                 }).then(() => {
                     S_Notify.alert("Đăng ký thành công! Hãy đăng nhập.");
@@ -987,26 +1080,21 @@ async function handleAuthSubmit() {
 }
 
 // Hàm để vào ứng dụng sau khi xác thực thành công
-function enterApp(displayId, isAutoLogin = false) {
-    currentSanitizedKey = sanitizeKey(displayId);
-    
-    // LƯU VÀO TRÌNH DUYỆT ĐỂ KHÔNG BỊ OUT KHI F5
-    localStorage.setItem('svoice_session', displayId);
+function enterApp(userId, displayName, isAutoLogin = false) {
+    currentSanitizedKey = sanitizeKey(userId);
+    localStorage.setItem('svoice_session', userId);
+    localStorage.setItem('svoice_fullname', displayName); // lưu tên hiển thị
     
     resetInactivityTimer();
+    document.getElementById('display-user-id').innerText = displayName; // hiển thị tên thật
     
-    document.getElementById('display-user-id').innerText = displayId;
     const navArea = document.getElementById('user-nav-area');
     navArea.classList.remove('hidden');
     navArea.classList.add('flex');
 
     if (!isAutoLogin) S_Notify.alert("Truy cập thành công!");
     watchNotifications();
-    
-    // Ẩn màn hình login ngay lập tức
-    const authView = document.getElementById('view-auth');
-    authView.classList.add('hidden');
-    
+    document.getElementById('view-auth').classList.add('hidden');
     loadShadowingList();
 }
 
@@ -1708,78 +1796,159 @@ function leaveMatch() {
 
 // ================= 3. COMMUNITY LOGIC =================
     let communityRecorder, communityChunks = [], communityBase64 = null;
-const recStart = document.getElementById('rec-post-start');
-const recStop = document.getElementById('rec-post-stop');
+const recToggleBtn = document.getElementById('rec-toggle-btn');
 const previewAudio = document.getElementById('post-audio-preview');
 
-recStart.onclick = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
-    });
-    window.communityStream = stream;
-    communityRecorder = new MediaRecorder(stream);
-    communityChunks = [];
-    communityRecorder.ondataavailable = e => communityChunks.push(e.data);
-    communityRecorder.onstop = () => {
-        const blob = new Blob(communityChunks, { type: 'audio/mp3' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            communityBase64 = reader.result;
-            previewAudio.src = communityBase64;
-            previewAudio.classList.remove('hidden');
-        };
-        reader.readAsDataURL(blob);
-        stream.getTracks().forEach(t => t.stop());
-    };
-    communityRecorder.start();
-    recStart.disabled = true;
-    recStop.disabled = false;
-    S_Notify.alert("Bắt đầu ghi âm chia sẻ...");
+let isRecording = false;
+
+// Thêm biến đếm thời gian
+let recordingTimer = null;
+let recordingSeconds = 0;
+const recordingTimeSpan = document.getElementById('recording-time');
+
+// Sửa lại recToggleBtn.onclick (giữ nguyên logic cũ, thêm phần UI)
+recToggleBtn.onclick = async () => {
+    if (!isRecording) {
+        // Bắt đầu ghi
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+            });
+            window.communityStream = stream;
+            communityRecorder = new MediaRecorder(stream);
+            communityChunks = [];
+            communityRecorder.ondataavailable = e => communityChunks.push(e.data);
+            communityRecorder.onstop = () => {
+                const blob = new Blob(communityChunks, { type: 'audio/mp3' });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    communityBase64 = reader.result;
+                    previewAudio.src = communityBase64;
+                    previewAudio.load();   // tải lại metadata
+                    previewAudio.classList.remove('hidden');
+                    document.getElementById('preview-container')?.classList.remove('hidden');
+                    initCustomAudioPlayers(); // để cập nhật preview player
+                };
+                reader.readAsDataURL(blob);
+                stream.getTracks().forEach(t => t.stop());
+                // Dừng timer
+                if (recordingTimer) clearInterval(recordingTimer);
+                recordingSeconds = 0;
+                recordingTimeSpan.textContent = '00:00';
+                document.body.classList.remove('recording-active');
+            };
+            communityRecorder.start();
+            isRecording = true;
+            // Đổi giao diện nút
+            recToggleBtn.innerHTML = '<i class="fa-solid fa-stop text-2xl text-white"></i>';
+            recToggleBtn.classList.remove('from-red-500', 'to-red-600');
+            recToggleBtn.classList.add('from-gray-600', 'to-gray-700');
+            // Bắt đầu timer
+            recordingSeconds = 0;
+            recordingTimeSpan.textContent = '00:00';
+            recordingTimer = setInterval(() => {
+                recordingSeconds++;
+                const mins = Math.floor(recordingSeconds / 60);
+                const secs = recordingSeconds % 60;
+                recordingTimeSpan.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+            document.body.classList.add('recording-active');
+            S_Notify.alert("Đang ghi âm...");
+        } catch (e) {
+            S_Notify.alert("Không thể truy cập micro", "error");
+        }
+    } else {
+        // Dừng ghi
+        if (communityRecorder && communityRecorder.state === 'recording') {
+            communityRecorder.stop();
+        }
+        isRecording = false;
+        recToggleBtn.innerHTML = '<i class="fa-solid fa-microphone text-2xl text-white"></i>';
+        recToggleBtn.classList.remove('from-gray-600', 'to-gray-700');
+        recToggleBtn.classList.add('from-red-500', 'to-red-600');
+        if (recordingTimer) clearInterval(recordingTimer);
+        document.body.classList.remove('recording-active');
+        S_Notify.alert("Đã dừng ghi");
+    }
 };
 
-recStop.onclick = () => {
-    communityRecorder.stop();
-    recStart.disabled = false;
-    recStop.disabled = true;
-};
+document.getElementById('clear-audio-btn')?.addEventListener('click', () => {
+    if (!communityBase64 && !isRecording) {
+        S_Notify.alert("Không có đoạn ghi âm nào để xóa.", "error");
+        return;
+    }
+    // Nếu đang ghi thì dừng
+    if (isRecording && communityRecorder && communityRecorder.state === 'recording') {
+        communityRecorder.stop();
+        isRecording = false;
+        recToggleBtn.innerHTML = '<i class="fa-solid fa-microphone text-2xl text-white"></i>';
+        recToggleBtn.classList.remove('from-gray-600', 'to-gray-700');
+        recToggleBtn.classList.add('from-red-500', 'to-red-600');
+        if (recordingTimer) clearInterval(recordingTimer);
+        document.body.classList.remove('recording-active');
+    }
+    // Reset dữ liệu âm thanh
+    communityBase64 = null;
+    if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.currentTime = 0;
+        previewAudio.src = '';
+    }
+    // Ẩn container preview
+    const previewContainer = document.getElementById('preview-container');
+    if (previewContainer) previewContainer.classList.add('hidden');
+    S_Notify.alert("Đã xoá bản ghi âm.");
+});
 
     async function uploadCommunityPost() {
     const title = document.getElementById('post-title').value.trim();
     const desc = document.getElementById('post-desc').value.trim();
-    const author = localStorage.getItem('svoice_session') || "Người dùng";
+    const author = localStorage.getItem('svoice_fullname') || localStorage.getItem('svoice_session') || "Người dùng";
     
-    if (!title || !communityBase64) {
-        return S_Notify.alert("Thiếu tiêu đề hoặc chưa ghi âm", "error");
+    if (!title) {
+        return S_Notify.alert("Vui lòng nhập tiêu đề bài viết", "error");
     }
     
     S_Notify.alert("Đang đăng tải công khai...");
     
+    // Nếu có ghi âm thì lưu base64, nếu không thì để null
+    let audioData = null;
+    if (communityBase64) {
+        audioData = communityBase64;
+    }
+    
     await rdb.ref('s_talk/community').push().set({
         title: title,
         desc: desc,
-        audioBase64: communityBase64,
+        audioBase64: audioData,   // có thể null
         author: author,
         reactions: { like: 0, heart: 0, haha: 0 },
-        userReacts: {},   // 👈 THÊM DÒNG NÀY
+        userReacts: {},
         comments: [],
         createdAt: Date.now()
     });
     
-    S_Notify.alert("Đã hiện diện trên bảng tin chung!");
-    document.getElementById('post-title').value = '';
-    document.getElementById('post-desc').value = '';
-    document.getElementById('post-audio-preview').classList.add('hidden');
-    communityBase64 = null;
+    S_Notify.alert("Đã đăng bài viết lên bảng tin!");
+    // Reset form
+document.getElementById('post-title').value = '';
+document.getElementById('post-desc').value = '';
+document.getElementById('post-audio-preview').classList.add('hidden');
+communityBase64 = null;
+// Nếu đang ghi thì dừng
+if (isRecording) {
     if (communityRecorder && communityRecorder.state === 'recording') communityRecorder.stop();
-    if (window.communityStream) window.communityStream.getTracks().forEach(t => t.stop());
+    isRecording = false;
+    recToggleBtn.innerHTML = '<i class="fa-solid fa-microphone text-2xl text-white"></i>';
+    recToggleBtn.classList.remove('from-gray-600', 'to-gray-700');
+    recToggleBtn.classList.add('from-red-500', 'to-red-600');
+}
+if (window.communityStream) window.communityStream.getTracks().forEach(t => t.stop());
 }
 
     // CHỈ GỌI HÀM NÀY MỘT LẦN KHI KHỞI TẠO
 let communityListenerAttached = false;
 let activeMenuId = null;
 // ================= THÔNG BÁO REAL-TIME =================
-let notificationBadge = 0;          // tổng số thông báo chưa đọc
-let myPostsIds = new Set();          // lưu id bài viết của user hiện tại
 
 // Hàm cập nhật badge trên tab
 function updateNotificationBadge(count) {
@@ -1794,63 +1963,69 @@ function updateNotificationBadge(count) {
     }
 }
 
-// Lắng nghe các tương tác mới (cảm xúc, comment)
 function watchNotifications() {
     const userId = localStorage.getItem('svoice_session') || "Guest";
-    // Lấy danh sách bài viết của user
-    rdb.ref('s_talk/community').orderByChild('author').equalTo(userId).on('child_added', (snap) => {
-        myPostsIds.add(snap.key);
-    });
+    let lastNotified = JSON.parse(localStorage.getItem('lastNotifiedReactions') || '{}');
     
-    // Theo dõi thay đổi reactions trên các bài của user
     rdb.ref('s_talk/community').on('child_changed', (snap) => {
+        const post = snap.val();
         const postId = snap.key;
-        if (!myPostsIds.has(postId)) return;
-        const data = snap.val();
-        const oldNoti = localStorage.getItem(`notified_${postId}`) || '{}';
-        const oldReacts = JSON.parse(oldNoti).reacts || {};
-        const newReacts = data.reactions || {};
-        // So sánh từng loại cảm xúc
-        let hasNew = false;
+        // Chỉ xử lý nếu bài viết này là của user hiện tại
+        if (post.author !== userId) return;
+        
+        // So sánh reactions
+        const oldReacts = lastNotified[postId]?.reactions || { like: 0, heart: 0, haha: 0 };
+        const newReacts = post.reactions || { like: 0, heart: 0, haha: 0 };
+        let hasNewReact = false;
         for (let type of ['like', 'heart', 'haha']) {
             if ((newReacts[type] || 0) > (oldReacts[type] || 0)) {
-                hasNew = true;
+                hasNewReact = true;
                 break;
             }
         }
-        if (hasNew) {
-            notificationBadge++;
-            localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: newReacts, commentsCount: data.comments?.length || 0 }));
-            updateNotificationBadge(notificationBadge);
-        }
-        // Lưu lại để so sánh lần sau
-        localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: newReacts, commentsCount: data.comments?.length || 0 }));
-    });
-    
-    // Theo dõi comment mới
-    rdb.ref('s_talk/community').on('child_changed', (snap) => {
-        const postId = snap.key;
-        if (!myPostsIds.has(postId)) return;
-        const data = snap.val();
-        const oldNoti = localStorage.getItem(`notified_${postId}`) || '{}';
-        const oldCommentsCount = JSON.parse(oldNoti).commentsCount || 0;
-        const newCommentsCount = data.comments?.length || 0;
-        if (newCommentsCount > oldCommentsCount) {
-            notificationBadge += (newCommentsCount - oldCommentsCount);
-            updateNotificationBadge(notificationBadge);
-            localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: data.reactions || {}, commentsCount: newCommentsCount }));
+        
+        // So sánh số comment
+        const oldCommentsCount = lastNotified[postId]?.commentsCount || 0;
+        const newCommentsCount = post.comments?.length || 0;
+        const hasNewComment = newCommentsCount > oldCommentsCount;
+        
+        if (hasNewReact || hasNewComment) {
+            // Tăng badge
+            let currentBadge = parseInt(localStorage.getItem('notificationBadge') || '0');
+            currentBadge++;
+            localStorage.setItem('notificationBadge', currentBadge);
+            updateNotificationBadge(currentBadge);
+            
+            // Cập nhật lại lastNotified
+            if (!lastNotified[postId]) lastNotified[postId] = {};
+            lastNotified[postId].reactions = newReacts;
+            lastNotified[postId].commentsCount = newCommentsCount;
+            localStorage.setItem('lastNotifiedReactions', JSON.stringify(lastNotified));
         }
     });
 }
 
-// Reset thông báo khi chuyển sang tab community
+// Hàm cập nhật hiển thị badge
+function updateNotificationBadge(count) {
+    const badgeSpan = document.getElementById('notify-badge-community');
+    const badgeMobile = document.getElementById('notify-badge-community-mobile');
+    if (count > 0) {
+        if (badgeSpan) badgeSpan.classList.remove('hidden');
+        if (badgeMobile) badgeMobile.classList.remove('hidden');
+        // Có thể hiển thị số nếu muốn
+        if (badgeSpan) badgeSpan.innerText = count;
+        if (badgeMobile) badgeMobile.innerText = count;
+    } else {
+        if (badgeSpan) badgeSpan.classList.add('hidden');
+        if (badgeMobile) badgeMobile.classList.add('hidden');
+    }
+}
+
+// Reset thông báo khi vào tab community
 function resetNotifications() {
-    notificationBadge = 0;
+    localStorage.setItem('notificationBadge', '0');
     updateNotificationBadge(0);
-    // Xóa cache thông báo của các bài viết (tuỳ chọn)
-    myPostsIds.forEach(id => {
-        localStorage.removeItem(`notified_${id}`);
-    });
+    // Không xóa lastNotifiedReactions để tránh mất dấu
 }
 
 function loadCommunityPosts() {
@@ -1926,9 +2101,28 @@ function loadCommunityPosts() {
                 <div class="mb-3 text-sm text-slate-200 leading-relaxed">
                     ${escapeHtml(post.desc || 'Không có mô tả.')}
                 </div>
-                <div class="bg-slate-800/50 rounded-xl p-2 mb-3">
-                    <audio controls src="${post.audioBase64}" class="w-full h-8 filter invert opacity-90"></audio>
+                ${post.audioBase64 ? `
+                <div class="bg-slate-800/50 rounded-xl p-3 mb-3">
+                    <div class="custom-audio-player" data-audio="${post.audioBase64}">
+                        <div class="flex items-center gap-3">
+                            <button class="play-pause-btn w-8 h-8 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 flex items-center justify-center text-indigo-400 transition-all">
+                                <i class="fas fa-play text-xs"></i>
+                            </button>
+                            <div class="flex-1">
+                                <div class="relative h-1.5 bg-white/10 rounded-full cursor-pointer progress-timeline">
+                                    <div class="progress-bar absolute left-0 top-0 h-full bg-indigo-500 rounded-full" style="width: 0%"></div>
+                                </div>
+                                <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                                    <span class="current-time">00:00</span>
+                                    <span class="duration">00:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                ` : `
+                <div class="text-center text-slate-500 text-xs italic mb-3">📝 Bài viết không có tệp âm thanh</div>
+                `}
                 <div class="flex items-center gap-6 py-2 border-t border-b border-white/10 mb-3">
                     <button class="react-btn" data-id="${id}" data-type="like" data-count="${likeCount}">
                         <i class="fa-solid fa-thumbs-up"></i> <span>Thích</span> <span class="react-count">${likeCount || ''}</span>
@@ -1941,14 +2135,26 @@ function loadCommunityPosts() {
                     </button>
                 </div>
                 <div class="space-y-3 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                    ${comments.map(c => `
-                        <div class="flex gap-2 items-start">
-                            <div class="w-6 h-6 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-[8px] font-bold">U</div>
-                            <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1">
-                                <span class="font-bold text-indigo-300 mr-2">@Feedback:</span> ${escapeHtml(c)}
+                    ${comments.map(c => {
+                        // Nếu comment là string (cũ) -> chuyển về object với author mặc định
+                        let author, text;
+                        if (typeof c === 'string') {
+                            author = '@Feedback:';
+                            text = c;
+                        } else {
+                            author = c.author || '@Feedback:';
+                            text = c.text;
+                        }
+                        const avatarLetter = (author === '@Feedback:' ? 'F' : author.charAt(0).toUpperCase());
+                        return `
+                            <div class="flex gap-2 items-start">
+                                <div class="w-6 h-6 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-[8px] font-bold">${avatarLetter}</div>
+                                <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1">
+                                    <span class="font-bold text-indigo-300 mr-2">${escapeHtml(author)}:</span> ${escapeHtml(text)}
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
                 <div class="flex items-center gap-2 mt-3">
                     <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">${(myId.charAt(0) || 'U').toUpperCase()}</div>
@@ -2173,9 +2379,6 @@ function handleReact(e) {
             return newType;
         }
     });
-    
-    // Cập nhật UI tạm thời (toàn bộ UI sẽ refresh qua listener realtime)
-    S_Notify.alert(`👍 Đã thả ${newType === 'like' ? 'Thích' : newType === 'heart' ? 'Yêu thích' : 'Haha'}!`);
 }
 
 function handleSendComment(e) {
@@ -2185,9 +2388,19 @@ function handleSendComment(e) {
     const input = document.getElementById(`cmt-${postId}`);
     const text = input.value.trim();
     if (!text) return;
+
+    // Lấy tên hiển thị từ localStorage (đã lưu khi đăng nhập)
+    const author = localStorage.getItem('svoice_fullname') || 
+                   localStorage.getItem('svoice_session') || 
+                   "Người dùng";
+
     rdb.ref(`s_talk/community/${postId}/comments`).transaction(comments => {
         comments = comments || [];
-        comments.push(text);
+        comments.push({
+            author: author,
+            text: text,
+            timestamp: Date.now()
+        });
         return comments;
     });
     input.value = '';
@@ -2276,6 +2489,7 @@ function escapeHtml(str) {
 function handleLogout() {
     S_Notify.confirm("Bạn có chắc chắn muốn đăng xuất không?", () => {
         localStorage.removeItem('svoice_session');
+        localStorage.removeItem('svoice_fullname'); // xoá thêm
         currentSanitizedKey = null;
         location.reload();
     });
@@ -2346,10 +2560,138 @@ resetInactivityTimer();
 
 window.addEventListener('load', () => {
     const savedUser = localStorage.getItem('svoice_session');
-    if (savedUser) {
-        enterApp(savedUser, true);
+    const savedName = localStorage.getItem('svoice_fullname');
+    if (savedUser && savedName) {
+        enterApp(savedUser, savedName, true);
+    } else if (savedUser) {
+        // fallback nếu chỉ có email (tài khoản cũ)
+        enterApp(savedUser, savedUser, true);
     }
 });
+
+// ================= CUSTOM AUDIO PLAYER =================
+function initCustomAudioPlayers() {
+    // Xử lý các player trong bài viết
+    document.querySelectorAll('.custom-audio-player').forEach(container => {
+        if (container.hasAttribute('data-initialized')) return;
+        const audioSrc = container.getAttribute('data-audio');
+        if (!audioSrc) return;
+        
+        const audio = new Audio(audioSrc);
+        const playBtn = container.querySelector('.play-pause-btn');
+        const progressBar = container.querySelector('.progress-bar');
+        const currentTimeSpan = container.querySelector('.current-time');
+        const durationSpan = container.querySelector('.duration');
+        const progressContainer = container.querySelector('.progress-timeline');
+        
+        let isPlaying = false;
+        
+        audio.addEventListener('loadedmetadata', () => {
+            const mins = Math.floor(audio.duration / 60);
+            const secs = Math.floor(audio.duration % 60);
+            durationSpan.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        });
+        
+        audio.addEventListener('timeupdate', () => {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = `${percent}%`;
+            const mins = Math.floor(audio.currentTime / 60);
+            const secs = Math.floor(audio.currentTime % 60);
+            currentTimeSpan.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        });
+        
+        audio.addEventListener('ended', () => {
+            isPlaying = false;
+            playBtn.innerHTML = '<i class="fas fa-play text-xs"></i>';
+        });
+        
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                audio.pause();
+                playBtn.innerHTML = '<i class="fas fa-play text-xs"></i>';
+            } else {
+                audio.play();
+                playBtn.innerHTML = '<i class="fas fa-pause text-xs"></i>';
+            }
+            isPlaying = !isPlaying;
+        });
+        
+        if (progressContainer) {
+            progressContainer.addEventListener('click', (e) => {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                audio.currentTime = percent * audio.duration;
+            });
+        }
+        
+        container.setAttribute('data-initialized', 'true');
+    });
+    
+    // Xử lý preview player
+    const previewAudio = document.getElementById('post-audio-preview');
+    if (!previewAudio) return;
+    
+    const previewPlayBtn = document.getElementById('preview-play-btn');
+    const previewProgressBar = document.getElementById('preview-progress-bar');
+    const previewCurrentTime = document.getElementById('preview-current-time');
+    const previewDuration = document.getElementById('preview-duration');
+    const previewProgressContainer = previewProgressBar?.parentElement;
+    
+    if (!previewPlayBtn) return;
+    
+    let isPreviewPlaying = false;
+    
+    previewAudio.addEventListener('loadedmetadata', () => {
+        const mins = Math.floor(previewAudio.duration / 60);
+        const secs = Math.floor(previewAudio.duration % 60);
+        previewDuration.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    previewAudio.addEventListener('timeupdate', () => {
+        const percent = (previewAudio.currentTime / previewAudio.duration) * 100;
+        previewProgressBar.style.width = `${percent}%`;
+        const mins = Math.floor(previewAudio.currentTime / 60);
+        const secs = Math.floor(previewAudio.currentTime % 60);
+        previewCurrentTime.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    previewAudio.addEventListener('ended', () => {
+        isPreviewPlaying = false;
+        previewPlayBtn.innerHTML = '<i class="fas fa-play text-xs"></i>';
+    });
+    
+    previewPlayBtn.addEventListener('click', () => {
+        if (isPreviewPlaying) {
+            previewAudio.pause();
+            previewPlayBtn.innerHTML = '<i class="fas fa-play text-xs"></i>';
+        } else {
+            previewAudio.play();
+            previewPlayBtn.innerHTML = '<i class="fas fa-pause text-xs"></i>';
+        }
+        isPreviewPlaying = !isPreviewPlaying;
+    });
+    
+    if (previewProgressContainer) {
+        previewProgressContainer.addEventListener('click', (e) => {
+            const rect = previewProgressContainer.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            previewAudio.currentTime = percent * previewAudio.duration;
+        });
+    }
+}
+
+// Gắn initCustomAudioPlayers vào các vị trí cần thiết
+// 1. Sau khi render bài viết (trong attachDynamicEvents)
+const originalAttach = attachDynamicEvents;
+attachDynamicEvents = function() {
+    originalAttach();
+    initCustomAudioPlayers();
+};
+
+// 2. Khi preview audio được tạo (sau khi ghi xong)
+// Tìm trong recToggleBtn.onstop, sau dòng reader.onloadend = () => { ... }
+// Thêm: initCustomAudioPlayers();
+// Nếu bạn đã có sẵn thì chỉ cần gọi lại.
 </script>
 
 <!-- Modal chỉnh sửa bài viết -->
