@@ -1045,10 +1045,33 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 // 3. Phát hiện DevTools mở bằng cách check kích thước màn hình
 // Nếu người dùng cố tình resize cửa sổ để soi code, trang sẽ trắng xóa
 setInterval(function() {
-    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
-        window.location.href = "about:blank";
+    // 1. Kiểm tra xem có phải mobile không
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (!isMobile) {
+        // 2. Nếu là PC mới thực hiện kiểm tra khoảng cách F12
+        const widthThreshold = window.outerWidth - window.innerWidth > 160;
+        const heightThreshold = window.outerHeight - window.innerHeight > 160;
+
+        // Nếu phát hiện cửa sổ bị thu hẹp bất thường (mở DevTools)
+        if (widthThreshold || heightThreshold) {
+            window.location.href = "about:blank";
+        }
     }
+    
+    // Nếu là Mobile, chúng ta không check height vì bàn phím sẽ làm sai lệch
+    // Mobile thường không có F12 trực tiếp nên không cần quá khắt khe chỗ này
 }, 1000);
+
+// Chặn phím tắt (Vẫn giữ nguyên cho cả 2 thiết bị)
+document.addEventListener('keydown', function(e) {
+    if (e.key === "F12" || 
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) || 
+        (e.ctrlKey && e.key === "u")) {
+        window.location.href = "about:blank";
+        e.preventDefault();
+    }
+});
 
 // 4. Chặn Zoom bằng JavaScript (Bổ trợ cho CSS)
 document.addEventListener('wheel', function(e) {
