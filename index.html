@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <link rel="manifest" href="manifest.json">
     <!-- Meta & Icons cho PWA -->
     <link rel="apple-touch-icon" href="https://i.ibb.co/jk3VPtg4/S-VOICE.png">
     <link rel="icon" type="image/png" href="https://i.ibb.co/jk3VPtg4/S-VOICE.png">
@@ -41,6 +42,52 @@
             color: #f8fafc; 
             overflow-x: hidden; 
             min-height: 100vh; 
+        }
+
+        /* Ép cuộn trang mượt trên Mobile và chặn Zoom */
+        html, body {
+            overflow-x: hidden; /* Chặn cuộn ngang */
+            overflow-y: auto !important; /* Cho phép cuộn dọc thoải mái */
+            -webkit-overflow-scrolling: touch; /* Vuốt mượt kiểu iOS */
+            touch-action: pan-y; /* Chỉ cho phép vuốt lên xuống, chặn pinch-to-zoom (zoom bằng 2 ngón) */
+            position: relative;
+            height: auto;
+            min-height: 100%;
+        }
+
+        /* Đảm bảo nội dung không bị dính khi vuốt */
+        main {
+            flex: 1;
+            overscroll-behavior-y: contain; /* Ngăn chặn hiệu ứng "nảy" quá đà ở đầu/cuối trang trên một số trình duyệt */
+        }
+        
+        /* Lớp dùng để khóa cứng màn hình */
+        body.auth-locked {
+            overflow: hidden !important;
+            touch-action: none; /* Chặn mọi thao tác vuốt trên mobile */
+            position: fixed;    /* Cố định vị trí, không cho nảy màn hình trên iOS */
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Khi đã đăng nhập, cho phép cuộn dọc trở lại */
+        body.app-ready {
+            overflow-y: auto !important;
+            touch-action: pan-y; /* Chỉ cho phép vuốt lên xuống */
+            position: relative;
+            height: auto;
+        }
+
+        /* Đảm bảo giao diện auth luôn phủ kín và không cuộn */
+        #view-auth {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #020617; /* Màu nền đồng nhất */
         }
 
         /* Nền Mesh động */
@@ -494,7 +541,7 @@ body:not(.recording-active) .wave-bar {
         <h1 class="text-2xl font-black uppercase italic text-white tracking-tighter">Hệ thống luyện nói Tiếng Anh</h1>
     </div>
 
-    <div class="glass max-w-[380px] w-full p-8 rounded-[3rem] relative">
+    <div class="glass max-w-[380px] w-full p-6 rounded-[2.5rem] relative scale-90 sm:scale-100">
         <div id="auth-badge-wrapper" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 px-6 py-1.5 rounded-full border border-white/20 shadow-lg z-10 transition-all duration-500">
             <span id="auth-subtitle" class="text-[10px] text-white font-black uppercase tracking-widest">Đăng nhập tài khoản</span>
         </div>
@@ -971,6 +1018,52 @@ body:not(.recording-active) .wave-bar {
     const rdb = firebase.database();
     const storage = firebase.storage();
     
+    /* ================= BẢO MẬT & CHỐNG ZOOM ================= */
+
+// 1. Chặn phím tắt F12, Ctrl+Shift+I, Ctrl+U... và chuyển hướng about:blank
+document.addEventListener('keydown', function(e) {
+    // Chặn F12
+    if (e.key === "F12") {
+        window.location.href = "about:blank";
+        e.preventDefault();
+    }
+    // Chặn Ctrl+Shift+I, J, C (Inspect)
+    if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) {
+        window.location.href = "about:blank";
+        e.preventDefault();
+    }
+    // Chặn Ctrl+U (Xem source)
+    if (e.ctrlKey && e.key === "u") {
+        window.location.href = "about:blank";
+        e.preventDefault();
+    }
+});
+
+// 2. Chặn chuột phải (Context Menu)
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// 3. Phát hiện DevTools mở bằng cách check kích thước màn hình
+// Nếu người dùng cố tình resize cửa sổ để soi code, trang sẽ trắng xóa
+setInterval(function() {
+    if (window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160) {
+        window.location.href = "about:blank";
+    }
+}, 1000);
+
+// 4. Chặn Zoom bằng JavaScript (Bổ trợ cho CSS)
+document.addEventListener('wheel', function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('gesturestart', function(e) {
+    e.preventDefault();
+});
+
+// Ngay khi trang load, khóa cuộn để hiện màn hình login
+document.body.classList.add('auth-locked');
+
 let isLoginMode = true;
 let currentSanitizedKey = null; // Biến lưu Key của người dùng hiện tại
 
@@ -1085,7 +1178,9 @@ function enterApp(userId, displayName, isAutoLogin = false) {
     currentSanitizedKey = sanitizeKey(userId);
     localStorage.setItem('svoice_session', userId);
     localStorage.setItem('svoice_fullname', displayName); // lưu tên hiển thị
-    
+    // MỞ KHÓA: Xóa lớp khóa và thêm lớp cho phép cuộn
+    document.body.classList.remove('auth-locked');
+    document.body.classList.add('app-ready');
     resetInactivityTimer();
     document.getElementById('display-user-id').innerText = displayName; // hiển thị tên thật
     
@@ -2571,6 +2666,9 @@ function handleLogout() {
         localStorage.removeItem('svoice_session');
         localStorage.removeItem('svoice_fullname'); // xoá thêm
         currentSanitizedKey = null;
+        // KHÓA LẠI:
+        document.body.classList.remove('app-ready');
+        document.body.classList.add('auth-locked');
         location.reload();
     });
 }
@@ -2799,6 +2897,15 @@ function toggleCommentMenu(e) {
             parentItem.style.zIndex = "auto";
         }
     }
+}
+
+// Đăng ký Service Worker cho PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW Registered!', reg))
+            .catch(err => console.log('SW registration failed: ', err));
+    });
 }
 
 </script>
