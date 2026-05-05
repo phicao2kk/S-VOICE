@@ -179,9 +179,7 @@
 
 /* Đảm bảo video luôn nằm dưới cùng ở mọi chế độ */
 #remote-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover !important; /* Ép hình ảnh lấp đầy toàn bộ khung đã chia */
+    z-index: 1 !important;
 }
 
 /* Bảng chờ: Nằm trên video nhưng dưới các nút bấm */
@@ -378,40 +376,19 @@ video {
     object-fit: contain !important;
 }
 
+/* Mobile: dọc 9:16 – dùng media query */
 @media (max-width: 768px) {
-    /* 1. Khoảng cách lề trên vừa phải để không bị sát Navbar */
-    main { 
-        padding-top: 6rem !important; 
-    }
-
-    /* 2. Tỉ lệ khung hình 1 / 1.4 (Vừa đủ đẹp, không bị dài ngoằng cũng không quá lùn) */
     #video-wrapper.mobile-call {
-        aspect-ratio: 1 / 1.4 !important; 
-        max-height: 65vh; /* Chiếm khoảng 65% chiều cao màn hình */
-        background: #000;
+        aspect-ratio: 9 / 16 !important;
     }
+    #video-wrapper.mobile-call #remote-video {
+        object-fit: cover !important;
+    }
+}
 
-    /* 3. Chỉnh lại màn hình nhỏ (Local Video) cho gọn gàng, không che khuất đối phương */
-    #local-video-container {
-        width: 100px !important; /* Thu nhỏ màn hình của mình lại một chút trên mobile */
-        height: auto;
-        bottom: 80px !important; /* Đẩy lên trên các nút điều khiển một chút */
-        right: 15px !important;
-        border-radius: 12px !important;
-    }
-
-    /* 4. Đẩy cụm nút bấm xuống sát đáy khung video */
-    #video-wrapper .absolute.bottom-8 {
-        bottom: 15px !important;
-        gap: 10px !important;
-    }
-
-    /* 5. Chỉnh lại badge trạng thái cho tinh tế */
-    #video-wrapper .absolute.top-6.left-6 {
-        top: 15px !important;
-        left: 15px !important;
-        padding: 6px 12px !important;
-    }
+/* Fallback nếu không có class */
+#video-wrapper:not(.pc-call):not(.mobile-call) {
+    aspect-ratio: 16 / 9;
 }
 
 /* Hiệu ứng Chấm tín hiệu Neural */
