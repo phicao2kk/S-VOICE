@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
     <!-- Meta & Icons cho PWA -->
-    <link rel="apple-touch-icon" href="https://i.ibb.co/5gSrmbp3/S-VOTES.png">
-    <link rel="icon" type="image/png" href="https://i.ibb.co/5gSrmbp3/S-VOTES.png">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/jk3VPtg4/S-VOICE.png">
+    <link rel="icon" type="image/png" href="https://i.ibb.co/jk3VPtg4/S-VOICE.png">
     <meta name="apple-mobile-web-app-title" content="S-VOICE">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#020617">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>S-VOICE • Shadowing • Luyện nói thông minh</title>
+    <title>S-VOICE • Luyện nói Tiếng Anh thông minh</title>
     
     <!-- Tailwind + Fonts + Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -367,60 +367,159 @@ video {
     margin-top: 1.5rem; 
     overflow: visible !important; /* Thêm dòng này để không bị cắt hào quang */
 }
+
+/* Padding dưới cho main để không bị thanh Bottom Nav che */
+@media (max-width: 1024px) {
+    main { padding-bottom: 100px !important; }
+    .tab-btn { color: #64748b; }
+    .tab-btn.active { background: transparent !important; color: white !important; box-shadow: none !important; }
+}
+
+/* Xử lý khoảng cách tầng trên Mobile */
+@media (max-width: 1024px) {
+    /* Đẩy thanh bản quyền lên trên thanh 3 nút (cao 80px = h-20) */
+    .credit-bar { 
+        bottom: 80px !important; 
+        background: rgba(3, 7, 18, 0.8) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    
+    /* Tăng padding của nội dung chính để không bị 2 thanh này che mất bài tập */
+    main { 
+        padding-bottom: 160px !important; 
+    }
+}
+
+/* Đảm bảo thanh 3 nút luôn nằm trên cùng (Z-index cao nhất) */
+.lg\:hidden.fixed.bottom-0 {
+    z-index: 100 !important;
+}
+
+/* Tuỳ chọn: nền bài viết sáng hơn (giống Facebook) */
+.bg-white\/5 {
+    background-color: rgba(255, 255, 255, 0.07);
+}
+.bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.bg-slate-800\/50 {
+    background-color: rgba(30, 41, 59, 0.6);
+}
+
+/* Dropdown menu (3 chấm) */
+.post-menu {
+    position: absolute;
+    right: 0;
+    top: 30px;
+    background: #1e293b;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+    width: 240px;
+    z-index: 50;
+    border: 1px solid rgba(255,255,255,0.1);
+    overflow: hidden;
+}
+.post-menu a, .post-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 13px;
+    color: #e2e8f0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.post-menu a:hover, .post-menu button:hover {
+    background: rgba(99, 102, 241, 0.3);
+}
+.post-menu hr {
+    margin: 4px 0;
+    border-color: rgba(255,255,255,0.05);
+}
+.relative-menu {
+    position: relative;
+}
+
 </style>
 </head>
 <body class="selection:bg-indigo-500/30">
 <div class="mesh-bg"></div>
 
-<!-- MÀN HÌNH ĐĂNG NHẬP (OVERLAY) -->
+<!-- MÀN HÌNH ĐĂNG NHẬP -->
 <div id="view-auth" class="fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 bg-[#020617]">
+        <!-- Logo Đăng nhập đã bo cong -->
     <div class="text-center mb-8">
-        <img src="https://i.ibb.co/5gSrmbp3/S-VOTES.png" class="w-16 h-16 mx-auto rounded-2xl shadow-2xl mb-4 border border-white/10 bg-indigo-600 p-2 brightness-0 invert">
-        <h1 class="text-2xl font-black uppercase italic text-white tracking-tighter">S-VOICE</h1>
+        <div class="w-20 h-20 mx-auto rounded-[1.5rem] overflow-hidden shadow-2xl mb-4 border border-white/10 bg-black flex items-center justify-center">
+            <img src="https://i.ibb.co/jk3VPtg4/S-VOICE.png" class="w-full h-full object-cover scale-110">
+        </div>
+        <h1 class="text-2xl font-black uppercase italic text-white tracking-tighter">Hệ thống luyện nói Tiếng Anh</h1>
     </div>
 
     <div class="glass max-w-[380px] w-full p-8 rounded-[3rem] relative">
         <div id="auth-badge-wrapper" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 px-6 py-1.5 rounded-full border border-white/20 shadow-lg z-10 transition-all duration-500">
-            <span id="auth-subtitle" class="text-[10px] text-white font-black uppercase tracking-widest">HỆ THỐNG TRUY CẬP</span>
+            <span id="auth-subtitle" class="text-[10px] text-white font-black uppercase tracking-widest">Đăng nhập tài khoản</span>
         </div>
 
-        <div class="space-y-5 pt-4">
-            <div class="field-container group">
-                <div class="flex items-center gap-3 mb-2 ml-1">
-                    <div class="dot-signal"></div>
-                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Tài khoản</label>
+        <div class="pt-4">
+            <!-- NHÓM Ô NHẬP ĐĂNG NHẬP (Độc lập) -->
+            <div id="login-fields" class="space-y-5">
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Tài khoản</label>
+                    </div>
+                    <input type="text" id="login-email" placeholder="Email hoặc SĐT" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
                 </div>
-                <input type="text" id="auth-email" placeholder="Email hoặc SĐT" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
-            </div>
-
-            <div class="field-container group">
-                <div class="flex items-center gap-3 mb-2 ml-1">
-                    <div class="dot-signal"></div>
-                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Mật khẩu</label>
-                </div>
-                <div class="relative">
-                    <input type="password" id="auth-pass" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
-                    <button onclick="togglePassVisibility('auth-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i class="fa-solid fa-eye text-xs"></i></button>
-                </div>
-            </div>
-
-            <!-- PHẦN XÁC NHẬN MẬT KHẨU (ĐÃ FIX LỖI CẮT GÓC) -->
-            <div id="confirm-password-container" class="field-container group pl-2"> <!-- Thêm pl-2 ở đây -->
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="dot-signal"></div>
-                    <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Xác nhận mật khẩu</label>
-                </div>
-                <div class="relative pr-2"> <!-- Thêm pr-2 để cân bằng -->
-                    <input type="password" id="auth-confirm" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
-                    <button onclick="togglePassVisibility('auth-confirm', this)" class="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
-                        <i class="fa-solid fa-eye text-xs"></i>
-                    </button>
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-indigo-400 uppercase font-black tracking-widest">Mật khẩu</label>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="login-pass" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500/50 transition-all">
+                        <button onclick="togglePassVisibility('login-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i class="fa-solid fa-eye text-xs"></i></button>
+                    </div>
                 </div>
             </div>
 
-            <button onclick="handleAuthSubmit()" class="btn-main w-full py-4 rounded-[2rem] mt-4 font-black uppercase tracking-widest text-xs text-white">Xác nhận truy cập</button>
+            <!-- NHÓM Ô NHẬP ĐĂNG KÝ (Độc lập - Mặc định ẩn) -->
+            <div id="register-fields" class="space-y-5 hidden">
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-emerald-400 uppercase font-black tracking-widest">Tạo tài khoản</label>
+                    </div>
+                    <input type="text" id="reg-email" placeholder="Email hoặc SĐT mới" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-emerald-500/50 transition-all">
+                </div>
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-emerald-400 uppercase font-black tracking-widest">Mật khẩu mới</label>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="reg-pass" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-emerald-500/50 transition-all">
+                        <button onclick="togglePassVisibility('reg-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i class="fa-solid fa-eye text-xs"></i></button>
+                    </div>
+                </div>
+                <div class="field-container group">
+                    <div class="flex items-center gap-3 mb-2 ml-1">
+                        <div class="dot-signal"></div>
+                        <label class="text-[10px] text-emerald-400 uppercase font-black tracking-widest">Xác nhận mật khẩu</label>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="reg-confirm" placeholder="••••••••" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-emerald-500/50 transition-all">
+                        <button onclick="togglePassVisibility('reg-confirm', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i class="fa-solid fa-eye text-xs"></i></button>
+                    </div>
+                </div>
+            </div>
 
-            <button onclick="toggleAuthMode()" id="btn-toggle-auth" class="w-full text-[9px] text-slate-400 uppercase font-black tracking-widest mt-2 hover:text-white transition-colors text-center">
+            <button onclick="handleAuthSubmit()" class="btn-main w-full py-4 rounded-[2rem] mt-6 font-black uppercase tracking-widest text-xs text-white">Xác nhận truy cập</button>
+
+            <button onclick="toggleAuthMode()" id="btn-toggle-auth" class="w-full text-[9px] text-slate-400 uppercase font-black tracking-widest mt-4 hover:text-white transition-colors text-center">
                 Chưa có tài khoản? <span class="text-emerald-400 underline decoration-emerald-500/30 underline-offset-4">Đăng ký</span>
             </button>
         </div>
@@ -428,33 +527,62 @@ video {
 </div>
 
 <!-- Navbar -->
-<nav class="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-6 lg:px-12 backdrop-blur-3xl bg-[#020617]/80 z-[100] border-b border-white/5">
-    <div class="flex items-center gap-4">
-        <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-indigo-600 p-2">
-            <img src="https://i.ibb.co/5gSrmbp3/S-VOTES.png" alt="Logo" class="w-full h-full object-contain brightness-0 invert">
+<nav class="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-4 lg:px-12 backdrop-blur-3xl bg-[#020617]/80 z-[100] border-b border-white/5">
+    <!-- Cụm bên trái: Logo -->
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 lg:w-12 lg:h-12 rounded-[1rem] lg:rounded-[1.25rem] overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
+            <img src="https://i.ibb.co/jk3VPtg4/S-VOICE.png" alt="Logo" class="w-full h-full object-cover scale-110">
         </div>
-        <div class="hidden sm:block">
-            <span class="text-2xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">S-VOICE</span>
-            <span class="block text-[8px] font-black tracking-[4px] text-indigo-400 -mt-1 uppercase opacity-80">Premium Shadowing Platform</span>
+        <div>
+            <span class="text-lg lg:text-2xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">S-VOICE</span>
+            <span class="hidden sm:block text-[8px] font-black tracking-[4px] text-indigo-400 -mt-1 uppercase opacity-80">Premium Shadowing Platform</span>
         </div>
     </div>
     
-    <div class="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner">
-        <button data-tab="shadowing" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">SHADOWING</button>
-        <button data-tab="peer" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">PEERS</button>
-        <button data-tab="community" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">COMMUNITY</button>
+    <!-- Cụm giữa: CHỈ HIỆN TRÊN PC (Dòng này đã được ẩn trên Mobile) -->
+    <div class="hidden lg:flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+        <button data-tab="shadowing" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">Luyện tập cá nhân</button>
+        <button data-tab="peer" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300">Cộng đồng/Bạn học</button>
+        <button data-tab="community" class="tab-btn px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300 relative">
+            Kết nối mở
+            <span id="notify-badge-community" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full px-1.5 min-w-[18px] h-[18px] flex items-center justify-center hidden">0</span>
+        </button>
     </div>
-    <!-- Thêm vào bên trong thẻ <nav>, sau khối nút Tab -->
-    <div id="user-nav-area" class="hidden items-center gap-3 ml-4 border-l border-white/10 pl-4">
-        <div class="text-right hidden sm:block">
-            <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest">Đang truy cập</span>
-            <span id="display-user-id" class="text-[10px] font-bold text-indigo-400 truncate max-w-[120px] inline-block">--</span>
+
+    <!-- Cụm bên phải: User Info -->
+    <div id="user-nav-area" class="hidden items-center gap-2 lg:gap-3 border-l border-white/10 pl-3 lg:pl-4">
+        <div class="text-right">
+            <span class="block text-[7px] lg:text-[8px] font-black text-slate-500 uppercase tracking-widest">Đang truy cập</span>
+            <span id="display-user-id" class="text-[9px] lg:text-[10px] font-bold text-indigo-400 truncate max-w-[80px] lg:max-w-[120px] inline-block">--</span>
         </div>
-        <button onclick="handleLogout()" class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center group" title="Thoát hệ thống">
-            <i class="fa-solid fa-power-off text-xs group-hover:scale-110 transition-transform"></i>
+        <button onclick="handleLogout()" class="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center group">
+            <i class="fa-solid fa-power-off text-[10px] lg:text-xs"></i>
         </button>
     </div>
 </nav>
+
+<!-- THANH ĐIỀU HƯỚNG DƯỚI (Đảm bảo z-index cao nhất) -->
+<div class="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#020617]/95 backdrop-blur-2xl border-t border-white/10 z-[100] flex items-center justify-around px-2">
+    <button data-tab="shadowing" class="tab-btn flex flex-col items-center gap-1 group">
+        <div class="w-12 py-2 rounded-xl flex items-center justify-center group-[.active]:bg-indigo-600 transition-all">
+            <i class="fa-solid fa-microphone-lines text-lg"></i>
+        </div>
+        <span class="text-[8px] font-black tracking-widest uppercase">Luyện tập cá nhân</span>
+    </button>
+    <button data-tab="peer" class="tab-btn flex flex-col items-center gap-1 group">
+        <div class="w-12 py-2 rounded-xl flex items-center justify-center group-[.active]:bg-indigo-600 transition-all">
+            <i class="fa-solid fa-users text-lg"></i>
+        </div>
+        <span class="text-[8px] font-black tracking-widest uppercase">Cộng đồng/Bạn học</span>
+    </button>
+    <button data-tab="community" class="tab-btn flex flex-col items-center gap-1 group relative">
+        <div class="w-12 py-2 rounded-xl flex items-center justify-center group-[.active]:bg-indigo-600 transition-all">
+            <i class="fa-solid fa-earth-americas text-lg"></i>
+        </div>
+        <span class="text-[8px] font-black tracking-widest uppercase">Kết nối mở</span>
+        <span id="notify-badge-community-mobile" class="absolute -top-1 right-2 bg-red-500 text-white text-[9px] rounded-full px-1.5 min-w-[18px] h-[18px] flex items-center justify-center hidden">0</span>
+    </button>
+</div>
 
 <main class="pt-28 pb-12 px-4 lg:px-8 max-w-[1400px] mx-auto min-h-screen">
     
@@ -488,8 +616,17 @@ video {
                     </div>
                 </div>
 
+                <!-- THƯ VIỆN BÀI TẬP -->
                 <div class="glass p-6 rounded-[32px] ring-1 ring-white/10">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[4px] mb-4">Thư viện bài tập</h3>
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[4px]">Thư viện bài tập</h3>
+                        <!-- Nút Xóa tất cả -->
+                        <button onclick="deleteAllShadowing()" class="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center group" title="Xóa sạch thư viện">
+                            <i class="fa-solid fa-trash-can text-[10px]"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Danh sách bài tập -->
                     <div id="shadow-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                         <!-- Items render here -->
                     </div>
@@ -507,8 +644,9 @@ video {
                             </div>
                         </div>
 
-                        <div id="shadow-text-display" class="w-full p-8 bg-black/40 rounded-[32px] text-lg lg:text-xl text-slate-200 leading-relaxed font-medium border border-white/5 shadow-inner min-h-[150px] flex flex-wrap justify-center items-center italic gap-x-2 gap-y-1">
-                            Nội dung bài học sẽ hiển thị tại đây...
+                        <div id="shadow-text-display" class="w-full p-8 bg-black/40 rounded-[32px] text-lg lg:text-xl text-slate-200 leading-relaxed font-medium border border-white/5 shadow-inner min-h-[150px] flex flex-col justify-center items-center italic gap-1">
+                            <div>Nội dung bài học sẽ hiển thị tại đây...</div>
+                            <div class="text-[11px] text-slate-500 font-bold uppercase tracking-[2px] not-italic mt-2">Chọn 1 bài tập trong thư viện của bạn để bắt đầu</div>
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
@@ -644,43 +782,69 @@ video {
     </div>
 </div>
 
-    <!-- ================= TAB CỘNG ĐỒNG ================= -->
-    <div id="tab-community" class="tab-content hidden animate-in fade-in duration-500">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-4">
-                <div class="glass p-6 rounded-[32px] sticky top-28 ring-1 ring-white/10">
-                    <h3 class="text-[10px] font-black uppercase tracking-[4px] text-indigo-400 mb-6 flex items-center gap-2">
-                        <i class="fa-solid fa-paper-plane"></i> Chia sẻ bài nói
-                    </h3>
-                    <div class="space-y-4">
-                        <input type="text" id="post-title" placeholder="Tiêu đề bài nói (VD: IELTS Speaking P2)" class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-sm font-bold">
-                        <textarea id="post-desc" rows="3" placeholder="Mô tả ngắn hoặc ghi chú..." class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-sm"></textarea>
-                        
-                        <div class="flex gap-2">
-                            <button id="rec-post-start" class="btn-secondary flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:text-red-400">
-                                <i class="fa-solid fa-microphone mr-2"></i> Ghi âm
-                            </button>
-                            <button id="rec-post-stop" disabled class="btn-secondary flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest disabled:opacity-20">
-                                <i class="fa-solid fa-stop mr-2"></i> Dừng
-                            </button>
-                        </div>
-                        
-                        <audio id="post-audio-preview" controls class="hidden w-full h-8 filter invert opacity-70"></audio>
-                        
-                        <button onclick="uploadCommunityPost()" class="btn-main w-full py-4 rounded-xl text-xs font-black tracking-[2px]">
-                            ĐĂNG LÊN CỘNG ĐỒNG
-                        </button>
+<!-- ================= TAB KẾT NỐI MỞ (SOCIAL) ================= -->
+<div id="tab-community" class="tab-content hidden animate-in fade-in duration-500">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- CỘT TRÁI (NHỎ): Ô ĐĂNG BÀI -->
+        <div class="lg:col-span-4 sticky top-28">
+            <div class="glass p-6 rounded-[32px] border-t-4 border-indigo-500 shadow-2xl">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <i class="fa-solid fa-pen-nib"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-black uppercase tracking-widest text-white">Chia sẻ bài nói</h3>
+                        <p class="text-[9px] text-slate-500 font-bold uppercase">Đăng lên bảng tin chung</p>
                     </div>
                 </div>
-            </div>
 
-            <div class="lg:col-span-8 space-y-6">
-                <div id="community-posts-list" class="space-y-6 overflow-y-auto max-h-[80vh] pr-2">
-                    <!-- Community posts go here -->
+                <div class="space-y-4">
+                    <input type="text" id="post-title" placeholder="Tiêu đề bài luyện tập..." class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-sm font-bold text-white focus:border-indigo-500 outline-none transition-all">
+                    <textarea id="post-desc" rows="3" placeholder="Bạn muốn mọi người góp ý điều gì? (vd: Cách phát âm, ngữ điệu...)" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-sm text-white focus:border-indigo-500 outline-none transition-all"></textarea>
+                    
+                    <div class="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10 text-center">
+                        <p class="text-[8px] font-black text-indigo-400 uppercase mb-3 tracking-[2px]">Thu âm giọng nói của bạn</p>
+                        <div class="flex gap-2">
+                            <button id="rec-post-start" class="flex-1 py-3 bg-white/5 hover:bg-red-500/20 text-white rounded-xl text-[9px] font-black uppercase transition-all border border-white/5"><i class="fa-solid fa-microphone mr-2"></i>Bắt đầu</button>
+                            <button id="rec-post-stop" disabled class="flex-1 py-3 bg-white/5 text-slate-500 rounded-xl text-[9px] font-black uppercase disabled:opacity-30 border border-white/5"><i class="fa-solid fa-stop mr-2"></i>Dừng</button>
+                        </div>
+                        <audio id="post-audio-preview" controls class="hidden w-full h-8 mt-4 filter invert"></audio>
+                    </div>
+                    
+                    <button onclick="uploadCommunityPost()" class="btn-main w-full py-4 rounded-2xl text-[10px] font-black tracking-[3px] shadow-indigo-500/20">
+                        <i class="fa-solid fa-earth-americas mr-2"></i> ĐĂNG BÀI NGAY
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- CỘT PHẢI (LỚN): BẢNG TIN CHI TIẾT -->
+        <div class="lg:col-span-8 space-y-8">
+            <div class="flex items-center justify-between px-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-[4px]">Bảng tin cộng đồng</h3>
+                </div>
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full">Toàn cầu</span>
+            </div>
+
+            <!-- Nơi chứa các bài viết -->
+            <div id="community-posts-list" class="space-y-6 pb-40">
+                <!-- Javascript sẽ đổ bài viết vào đây -->
+            </div>
+        </div>
     </div>
+</div>
+
+        <!-- THANH BĂNG BẢN QUYỀN (Tự động thích ứng Mobile/PC) -->
+    <div class="fixed bottom-0 lg:bottom-0 left-0 right-0 bg-[#030712]/95 backdrop-blur-md border-t border-white/5 py-3 z-[90] credit-bar transition-all duration-300">
+        <p class="text-[9px] text-slate-500 uppercase tracking-[2px] text-center flex items-center justify-center gap-2">
+            <span>© 2026</span> 
+            <span class="w-[1px] h-2 bg-white/10"></span> 
+            <span>Thiết kế bởi <b class="text-indigo-400 font-extrabold italic">Cao Nguyễn Hồng Phi</b></span>
+        </p>
+</div>
 </main>
 
 <!-- Toasts & Modals -->
@@ -720,29 +884,34 @@ video {
     }
     
     const rdb = firebase.database();
-    const storage = firebase.storage();
     
-    let isLoginMode = true;
+let isLoginMode = true;
+let currentSanitizedKey = null; // Biến lưu Key của người dùng hiện tại
 
 function toggleAuthMode() {
     isLoginMode = !isLoginMode;
     const badge = document.getElementById('auth-badge-wrapper');
     const subtitle = document.getElementById('auth-subtitle');
     const toggleBtn = document.getElementById('btn-toggle-auth');
-    const confirmBox = document.getElementById('confirm-password-container');
+    
+    // Hai nhóm ô nhập liệu
+    const loginFields = document.getElementById('login-fields');
+    const registerFields = document.getElementById('register-fields');
 
     if (isLoginMode) {
-        // Chế độ ĐĂNG NHẬP: Hiện chữ "Đăng ký" màu xanh lá
         badge.classList.replace('bg-emerald-600', 'bg-indigo-600');
         subtitle.innerText = "HỆ THỐNG TRUY CẬP";
         toggleBtn.innerHTML = "Chưa có tài khoản? <span class='text-emerald-400 underline decoration-emerald-500/30 underline-offset-4'>Đăng ký</span>";
-        confirmBox.classList.remove('show');
+        
+        loginFields.classList.remove('hidden');
+        registerFields.classList.add('hidden');
     } else {
-        // Chế độ ĐĂNG KÝ: Hiện chữ "Đăng nhập" màu tím
         badge.classList.replace('bg-indigo-600', 'bg-emerald-600');
         subtitle.innerText = "ĐĂNG KÝ TÀI KHOẢN";
         toggleBtn.innerHTML = "Đã có tài khoản? <span class='text-indigo-400 underline decoration-indigo-500/30 underline-offset-4'>Đăng nhập</span>";
-        confirmBox.classList.add('show');
+        
+        loginFields.classList.add('hidden');
+        registerFields.classList.remove('hidden');
     }
 }
 
@@ -758,27 +927,87 @@ function togglePassVisibility(id, btn) {
     }
 }
 
-// Hàm giả lập đăng nhập để vào app
-function handleAuthSubmit() {
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-pass').value;
+// ... (Giữ nguyên phần cấu hình Firebase và các biến toàn cục bên trên)
+
+// HÀM HỖ TRỢ: Chuyển email/SĐT thành mã có thể lưu làm Key trong Firebase (bỏ dấu chấm)
+function sanitizeKey(key) {
+    return key.replace(/\./g, ',').replace(/@/g, '_at_');
+}
+
+// HÀM CHÍNH: Xử lý khi nhấn nút "Xác nhận truy cập"
+async function handleAuthSubmit() {
+    // Tự động chọn ID dựa trên chế độ đang bật
+    const emailId = isLoginMode ? 'login-email' : 'reg-email';
+    const passId = isLoginMode ? 'login-pass' : 'reg-pass';
     
-    if(!email || !pass) return S_Notify.alert("Vui lòng nhập đủ thông tin", "error");
+    const email = document.getElementById(emailId).value.trim();
+    const pass = document.getElementById(passId).value.trim();
+    const confirmPass = document.getElementById('reg-confirm').value.trim();
+
+    if (!email || !pass) {
+        return S_Notify.alert("Vui lòng nhập tài khoản và mật khẩu", "error");
+    }
+
+    const userKey = sanitizeKey(email); // Hàm sanitizeKey bạn đã có
+
+    if (isLoginMode) {
+        // --- LOGIC ĐĂNG NHẬP ---
+        rdb.ref('users/' + userKey).once('value', (snapshot) => {
+            const userData = snapshot.val();
+            if (userData && userData.password === pass) {
+                enterApp(email); // Hàm enterApp bạn đã có
+            } else {
+                S_Notify.alert("Tài khoản hoặc mật khẩu không chính xác", "error");
+            }
+        });
+    } else {
+        // --- LOGIC ĐĂNG KÝ ---
+        if (pass !== confirmPass) {
+            return S_Notify.alert("Mật khẩu xác nhận không khớp", "error");
+        }
+        if (pass.length < 6) {
+            return S_Notify.alert("Mật khẩu phải từ 6 ký tự", "error");
+        }
+
+        rdb.ref('users/' + userKey).once('value', (snapshot) => {
+            if (snapshot.exists()) {
+                S_Notify.alert("Tài khoản này đã tồn tại", "error");
+            } else {
+                rdb.ref('users/' + userKey).set({
+                    email: email,
+                    password: pass,
+                    createdAt: Date.now()
+                }).then(() => {
+                    S_Notify.alert("Đăng ký thành công! Hãy đăng nhập.");
+                    toggleAuthMode();
+                });
+            }
+        });
+    }
+}
+
+// Hàm để vào ứng dụng sau khi xác thực thành công
+function enterApp(displayId, isAutoLogin = false) {
+    currentSanitizedKey = sanitizeKey(displayId);
     
-    // Lưu định danh và hiển thị lên Navbar
-    document.getElementById('display-user-id').innerText = email;
+    // LƯU VÀO TRÌNH DUYỆT ĐỂ KHÔNG BỊ OUT KHI F5
+    localStorage.setItem('svoice_session', displayId);
+    
+    resetInactivityTimer();
+    
+    document.getElementById('display-user-id').innerText = displayId;
     const navArea = document.getElementById('user-nav-area');
     navArea.classList.remove('hidden');
     navArea.classList.add('flex');
 
-    S_Notify.alert("Truy cập thành công!");
+    if (!isAutoLogin) S_Notify.alert("Truy cập thành công!");
+    watchNotifications();
     
-    // Hiệu ứng biến mất màn hình đăng nhập
+    // Ẩn màn hình login ngay lập tức
     const authView = document.getElementById('view-auth');
-    authView.style.transition = "all 0.8s ease";
-    authView.style.opacity = "0";
-    authView.style.transform = "scale(1.1)";
-    setTimeout(() => authView.classList.add('hidden'), 800);
+    authView.classList.add('hidden');
+    
+    loadShadowingList();
 }
 
     function getDeviceType() {
@@ -822,24 +1051,37 @@ function handleAuthSubmit() {
 
     // ================= 1. SHADOWING LOGIC =================
     async function loadShadowingList() {
-        const snapshot = await rdb.ref('s_talk/shadowing').once('value');
-        const data = snapshot.val() || {};
-        const container = document.getElementById('shadow-list');
-        container.innerHTML = '';
-        for(let [id, item] of Object.entries(data)) {
-            const div = document.createElement('div');
-            div.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group';
-            div.innerHTML = `
-                <div class="flex justify-between items-start mb-1">
-                    <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider">${item.title}</p>
-                    <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-indigo-500 transition-all"></i>
-                </div>
-                <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px]">${item.text.substring(0,40)}...</p>
-            `;
-            div.onclick = () => loadShadowingItem(id, item);
-            container.appendChild(div);
-        }
+    if (!currentSanitizedKey) return; 
+
+    const snapshot = await rdb.ref(`users/${currentSanitizedKey}/shadowing`).once('value');
+    const data = snapshot.val() || {};
+    const container = document.getElementById('shadow-list');
+    container.innerHTML = '';
+    
+    if (Object.keys(data).length === 0) {
+        container.innerHTML = `<p class="text-[9px] text-slate-600 text-center uppercase font-bold tracking-widest py-4">Chưa có bài tập nào</p>`;
+        return;
     }
+
+    for(let [id, item] of Object.entries(data)) {
+        const div = document.createElement('div');
+        div.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group relative overflow-hidden';
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-1 pr-10">
+                <p class="font-bold text-xs text-white group-hover:text-indigo-400 transition-colors uppercase tracking-wider truncate">${item.title}</p>
+            </div>
+            <p class="text-[10px] text-slate-500 truncate font-medium uppercase tracking-[1px] pr-10">${item.text.substring(0,35)}...</p>
+            
+            <!-- NÚT XÓA RIÊNG LẺ (HIỆN CỐ ĐỊNH CHO MOBILE) -->
+            <button onclick="event.stopPropagation(); deleteSingleShadowing('${id}')" 
+                class="absolute right-0 top-0 bottom-0 w-10 bg-red-500/10 text-red-500 flex items-center justify-center border-l border-white/5 active:bg-red-500 active:text-white transition-all">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+        `;
+        div.onclick = () => loadShadowingItem(id, item);
+        container.appendChild(div);
+    }
+}
 
     function loadShadowingItem(id, item) {
         currentShadowingId = id;
@@ -893,9 +1135,17 @@ function handleAuthSubmit() {
     }
 
     async function saveShadowToDB(title, text, audioUrl) {
-        const newRef = rdb.ref('s_talk/shadowing').push();
-        await newRef.set({ title, text, audioUrl, createdAt: Date.now() });
-        S_Notify.alert("Đã đăng bài tập thành công!");
+        if (!currentSanitizedKey) return S_Notify.alert("Lỗi: Không tìm thấy định danh người dùng", "error");
+
+        const newRef = rdb.ref(`users/${currentSanitizedKey}/shadowing`).push();
+        await newRef.set({ 
+            title, 
+            text, 
+            audioUrl, 
+            createdAt: Date.now() 
+        });
+        
+        S_Notify.alert("Đã đăng bài tập vào thư viện riêng của bạn!");
         document.getElementById('shadow-title').value = '';
         document.getElementById('shadow-text').value = '';
         document.getElementById('audio-upload').value = '';
@@ -1456,118 +1706,535 @@ function leaveMatch() {
     S_Notify.alert("Đã kết thúc cuộc gọi");
 }
 
-    // ================= 3. COMMUNITY LOGIC =================
-    let communityRecorder, communityChunks=[], communityBlob=null;
-    const recStart = document.getElementById('rec-post-start');
-    const recStop = document.getElementById('rec-post-stop');
-    const previewAudio = document.getElementById('post-audio-preview');
+// ================= 3. COMMUNITY LOGIC =================
+    let communityRecorder, communityChunks = [], communityBase64 = null;
+const recStart = document.getElementById('rec-post-start');
+const recStop = document.getElementById('rec-post-stop');
+const previewAudio = document.getElementById('post-audio-preview');
 
-    recStart.onclick = async() => {
-        const audioConstraints = {
-            audio: {
-                echoCancellation: true,      // Khử tiếng vang
-                noiseSuppression: true,      // Lọc tiếng ồn nền (Quạt, điều hòa...)
-                autoGainControl: true,       // Tự động điều chỉnh độ lớn âm thanh
-                channelCount: 1              // Chuyển về Mono (đơn kênh) giúp AI tập trung hơn
-            }
-        };
-
-        // Ví dụ áp dụng cho nút Start Recording của bạn:
-        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
-        communityRecorder = new MediaRecorder(stream);
-        communityChunks=[];
-        communityRecorder.ondataavailable = e => communityChunks.push(e.data);
-        communityRecorder.onstop = () => {
-            communityBlob = new Blob(communityChunks, { type:'audio/mp3' });
-            previewAudio.src = URL.createObjectURL(communityBlob);
+recStart.onclick = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+    });
+    window.communityStream = stream;
+    communityRecorder = new MediaRecorder(stream);
+    communityChunks = [];
+    communityRecorder.ondataavailable = e => communityChunks.push(e.data);
+    communityRecorder.onstop = () => {
+        const blob = new Blob(communityChunks, { type: 'audio/mp3' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            communityBase64 = reader.result;
+            previewAudio.src = communityBase64;
             previewAudio.classList.remove('hidden');
-            stream.getTracks().forEach(t=>t.stop());
         };
-        communityRecorder.start();
-        recStart.disabled=true; recStop.disabled=false;
-        S_Notify.alert("Bắt đầu ghi âm chia sẻ...");
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
     };
-    recStop.onclick = () => { communityRecorder.stop(); recStart.disabled=false; recStop.disabled=true; };
+    communityRecorder.start();
+    recStart.disabled = true;
+    recStop.disabled = false;
+    S_Notify.alert("Bắt đầu ghi âm chia sẻ...");
+};
+
+recStop.onclick = () => {
+    communityRecorder.stop();
+    recStart.disabled = false;
+    recStop.disabled = true;
+};
 
     async function uploadCommunityPost() {
-        const title = document.getElementById('post-title').value.trim();
-        const desc = document.getElementById('post-desc').value.trim();
-        if(!title || !communityBlob) return S_Notify.alert("Thiếu tiêu đề hoặc chưa ghi âm","error");
-        
-        const storageRef = storage.ref(`community/${Date.now()}_post.mp3`);
-        await storageRef.put(communityBlob);
-        const audioUrl = await storageRef.getDownloadURL();
-        
-        await rdb.ref('s_talk/community').push().set({
-            title, desc, audioUrl, author: "Người dùng", likes:0, comments: [], createdAt: Date.now()
-        });
-        
-        S_Notify.alert("Đã đăng thành công lên cộng đồng!");
-        document.getElementById('post-title').value = ''; document.getElementById('post-desc').value = '';
-        previewAudio.classList.add('hidden'); communityBlob=null;
-        loadCommunityPosts();
+    const title = document.getElementById('post-title').value.trim();
+    const desc = document.getElementById('post-desc').value.trim();
+    const author = localStorage.getItem('svoice_session') || "Người dùng";
+    
+    if (!title || !communityBase64) {
+        return S_Notify.alert("Thiếu tiêu đề hoặc chưa ghi âm", "error");
     }
+    
+    S_Notify.alert("Đang đăng tải công khai...");
+    
+    await rdb.ref('s_talk/community').push().set({
+        title: title,
+        desc: desc,
+        audioBase64: communityBase64,
+        author: author,
+        reactions: { like: 0, heart: 0, haha: 0 },
+        userReacts: {},   // 👈 THÊM DÒNG NÀY
+        comments: [],
+        createdAt: Date.now()
+    });
+    
+    S_Notify.alert("Đã hiện diện trên bảng tin chung!");
+    document.getElementById('post-title').value = '';
+    document.getElementById('post-desc').value = '';
+    document.getElementById('post-audio-preview').classList.add('hidden');
+    communityBase64 = null;
+    if (communityRecorder && communityRecorder.state === 'recording') communityRecorder.stop();
+    if (window.communityStream) window.communityStream.getTracks().forEach(t => t.stop());
+}
 
-    async function loadCommunityPosts() {
-        const snapshot = await rdb.ref('s_talk/community').orderByChild('createdAt').once('value');
+    // CHỈ GỌI HÀM NÀY MỘT LẦN KHI KHỞI TẠO
+let communityListenerAttached = false;
+let activeMenuId = null;
+// ================= THÔNG BÁO REAL-TIME =================
+let notificationBadge = 0;          // tổng số thông báo chưa đọc
+let myPostsIds = new Set();          // lưu id bài viết của user hiện tại
+
+// Hàm cập nhật badge trên tab
+function updateNotificationBadge(count) {
+    const badgeSpan = document.getElementById('notify-badge-community');
+    const badgeMobile = document.getElementById('notify-badge-community-mobile');
+    if (count > 0) {
+        if (badgeSpan) badgeSpan.classList.remove('hidden');
+        if (badgeMobile) badgeMobile.classList.remove('hidden');
+    } else {
+        if (badgeSpan) badgeSpan.classList.add('hidden');
+        if (badgeMobile) badgeMobile.classList.add('hidden');
+    }
+}
+
+// Lắng nghe các tương tác mới (cảm xúc, comment)
+function watchNotifications() {
+    const userId = localStorage.getItem('svoice_session') || "Guest";
+    // Lấy danh sách bài viết của user
+    rdb.ref('s_talk/community').orderByChild('author').equalTo(userId).on('child_added', (snap) => {
+        myPostsIds.add(snap.key);
+    });
+    
+    // Theo dõi thay đổi reactions trên các bài của user
+    rdb.ref('s_talk/community').on('child_changed', (snap) => {
+        const postId = snap.key;
+        if (!myPostsIds.has(postId)) return;
+        const data = snap.val();
+        const oldNoti = localStorage.getItem(`notified_${postId}`) || '{}';
+        const oldReacts = JSON.parse(oldNoti).reacts || {};
+        const newReacts = data.reactions || {};
+        // So sánh từng loại cảm xúc
+        let hasNew = false;
+        for (let type of ['like', 'heart', 'haha']) {
+            if ((newReacts[type] || 0) > (oldReacts[type] || 0)) {
+                hasNew = true;
+                break;
+            }
+        }
+        if (hasNew) {
+            notificationBadge++;
+            localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: newReacts, commentsCount: data.comments?.length || 0 }));
+            updateNotificationBadge(notificationBadge);
+        }
+        // Lưu lại để so sánh lần sau
+        localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: newReacts, commentsCount: data.comments?.length || 0 }));
+    });
+    
+    // Theo dõi comment mới
+    rdb.ref('s_talk/community').on('child_changed', (snap) => {
+        const postId = snap.key;
+        if (!myPostsIds.has(postId)) return;
+        const data = snap.val();
+        const oldNoti = localStorage.getItem(`notified_${postId}`) || '{}';
+        const oldCommentsCount = JSON.parse(oldNoti).commentsCount || 0;
+        const newCommentsCount = data.comments?.length || 0;
+        if (newCommentsCount > oldCommentsCount) {
+            notificationBadge += (newCommentsCount - oldCommentsCount);
+            updateNotificationBadge(notificationBadge);
+            localStorage.setItem(`notified_${postId}`, JSON.stringify({ reacts: data.reactions || {}, commentsCount: newCommentsCount }));
+        }
+    });
+}
+
+// Reset thông báo khi chuyển sang tab community
+function resetNotifications() {
+    notificationBadge = 0;
+    updateNotificationBadge(0);
+    // Xóa cache thông báo của các bài viết (tuỳ chọn)
+    myPostsIds.forEach(id => {
+        localStorage.removeItem(`notified_${id}`);
+    });
+}
+
+function loadCommunityPosts() {
+    if (communityListenerAttached) return;
+    communityListenerAttached = true;
+    
+    rdb.ref('s_talk/community').on('value', (snapshot) => {
         const posts = snapshot.val() || {};
         const container = document.getElementById('community-posts-list');
         container.innerHTML = '';
         
+        const myId = localStorage.getItem('svoice_session') || "Guest";
+        let savedPosts = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+        let mutedPosts = JSON.parse(localStorage.getItem('muted_posts') || '[]');
+        
         Object.entries(posts).reverse().forEach(([id, post]) => {
+            if (post.archived === true) return;
+            
+            const isMyPost = (post.author === myId);
+            const isSaved = savedPosts.includes(id);
+            const isMuted = mutedPosts.includes(id);
+            const likeCount = post.reactions?.like || 0;
+            const heartCount = post.reactions?.heart || 0;
+            const hahaCount = post.reactions?.haha || 0;
+            const comments = post.comments || [];
+
             const card = document.createElement('div');
-            card.className = 'glass p-6 rounded-[32px] border border-white/5 space-y-4';
+            card.className = "bg-white/5 rounded-2xl p-5 border border-white/10 hover:bg-white/10 transition-all duration-200 relative-menu";
+            card.id = `post-${id}`;
             card.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h4 class="font-black text-indigo-400 uppercase tracking-wider">${post.title}</h4>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">${new Date(post.createdAt).toLocaleDateString()}</p>
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                            ${(post.author || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-white text-sm">${escapeHtml(post.author)}</span>
+                            </div>
+                            <div class="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>${new Date(post.createdAt).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span><i class="fa-solid fa-globe"></i></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 bg-pink-500/10 px-3 py-1.5 rounded-full border border-pink-500/20">
-                        <i class="fa-solid fa-heart text-pink-500 text-[10px]"></i>
-                        <span class="text-[10px] font-black text-pink-500">${post.likes||0}</span>
+                    <div class="relative">
+                        <button class="post-menu-btn text-slate-400 hover:text-white transition-all p-1" data-post-id="${id}">
+                            <i class="fa-solid fa-ellipsis-h"></i>
+                        </button>
+                        <div id="menu-${id}" class="post-menu hidden" style="position: absolute; right: 0; top: 30px;">
+                            <button class="save-post-btn" data-id="${id}">
+                                <i class="${isSaved ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'}"></i> ${isSaved ? 'Bỏ lưu' : 'Lưu bài viết'}
+                            </button>
+                            ${isMyPost ? `
+                                <button class="edit-post-btn" data-id="${id}" data-title="${escapeHtml(post.title)}" data-desc="${escapeHtml(post.desc || '')}">
+                                    <i class="fa-regular fa-pen-to-square"></i> Chỉnh sửa bài viết
+                                </button>
+                            ` : ''}
+                            <button class="mute-post-btn" data-id="${id}">
+                                <i class="${isMuted ? 'fa-solid fa-bell-slash' : 'fa-regular fa-bell-slash'}"></i> ${isMuted ? 'Bật thông báo' : 'Tắt thông báo về bài viết này'}
+                            </button>
+                            ${isMyPost ? `
+                                <hr>
+                                <button class="delete-post-btn text-red-400 hover:text-red-600" data-id="${id}">
+                                    <i class="fa-regular fa-trash-can"></i> Chuyển vào thùng rác
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
-                <p class="text-xs text-slate-300 leading-relaxed">${post.desc||''}</p>
-                <audio controls src="${post.audioUrl}" class="w-full h-8 filter invert opacity-80 rounded-lg"></audio>
-                <div class="flex gap-4 pt-2">
-                    <button onclick="likePost('${id}', ${post.likes||0})" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-pink-500 transition-colors">Thích</button>
-                    <button onclick="openRatingModal('${id}')" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 transition-colors">Góp ý</button>
+                <div class="mb-2 font-bold text-white text-md">${escapeHtml(post.title)}</div>
+                <div class="mb-3 text-sm text-slate-200 leading-relaxed">
+                    ${escapeHtml(post.desc || 'Không có mô tả.')}
                 </div>
-                <div id="comments-${id}" class="space-y-2 pt-2 border-t border-white/5">
-                    ${post.comments ? post.comments.map(c => `<p class="text-[10px] text-slate-400"><span class="text-indigo-400">@Guest:</span> ${c}</p>`).join('') : ''}
+                <div class="bg-slate-800/50 rounded-xl p-2 mb-3">
+                    <audio controls src="${post.audioBase64}" class="w-full h-8 filter invert opacity-90"></audio>
                 </div>
-                <div class="flex gap-2">
-                    <input type="text" id="cmt-${id}" placeholder="Nhận xét bài nói..." class="bg-black/20 border border-white/5 text-[10px] p-3 rounded-xl flex-1 focus:border-indigo-500/50">
-                    <button onclick="addComment('${id}')" class="bg-indigo-600 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest">Gửi</button>
+                <div class="flex items-center gap-6 py-2 border-t border-b border-white/10 mb-3">
+                    <button class="react-btn" data-id="${id}" data-type="like" data-count="${likeCount}">
+                        <i class="fa-solid fa-thumbs-up"></i> <span>Thích</span> <span class="react-count">${likeCount || ''}</span>
+                    </button>
+                    <button class="react-btn" data-id="${id}" data-type="heart" data-count="${heartCount}">
+                        <i class="fa-solid fa-heart"></i> <span>Yêu thích</span> <span class="react-count">${heartCount || ''}</span>
+                    </button>
+                    <button class="react-btn" data-id="${id}" data-type="haha" data-count="${hahaCount}">
+                        <i class="fa-regular fa-face-grin-tongue-squint"></i> <span>Haha</span> <span class="react-count">${hahaCount || ''}</span>
+                    </button>
+                </div>
+                <div class="space-y-3 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    ${comments.map(c => `
+                        <div class="flex gap-2 items-start">
+                            <div class="w-6 h-6 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-[8px] font-bold">U</div>
+                            <div class="bg-slate-800/50 rounded-2xl px-3 py-2 text-xs text-slate-300 flex-1">
+                                <span class="font-bold text-indigo-300 mr-2">@Feedback:</span> ${escapeHtml(c)}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="flex items-center gap-2 mt-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">${(myId.charAt(0) || 'U').toUpperCase()}</div>
+                    <div class="flex-1 flex gap-2 bg-slate-800/50 rounded-full px-4 py-2 border border-white/10 focus-within:border-indigo-500/50 transition-all">
+                        <input type="text" id="cmt-${id}" placeholder="Viết bình luận..." class="bg-transparent border-none text-xs text-white flex-1 outline-none">
+                        <button class="send-comment" data-id="${id}" class="text-indigo-400 hover:text-indigo-300 text-xs font-bold"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
                 </div>
             `;
             container.appendChild(card);
         });
-    }
+        attachDynamicEvents();
+    });
+}
 
-    window.likePost = (id, currentLikes) => { rdb.ref(`s_talk/community/${id}/likes`).set(currentLikes+1); loadCommunityPosts(); };
-    window.addComment = (id) => { 
-        const inp = document.getElementById(`cmt-${id}`); 
-        const text = inp.value.trim(); 
-        if(text) { 
-            rdb.ref(`s_talk/community/${id}/comments`).transaction(comments => {
-                comments = comments || []; comments.push(text); return comments;
-            });
-            inp.value=''; S_Notify.alert("Đã gửi nhận xét!"); loadCommunityPosts(); 
-        } 
+function attachDynamicEvents() {
+    document.querySelectorAll('.post-menu-btn').forEach(btn => {
+        btn.removeEventListener('click', toggleMenu);
+        btn.addEventListener('click', toggleMenu);
+    });
+    document.querySelectorAll('.save-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleSavePost);
+        btn.addEventListener('click', handleSavePost);
+    });
+    document.querySelectorAll('.edit-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleEditPost);
+        btn.addEventListener('click', handleEditPost);
+    });
+    document.querySelectorAll('.mute-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleMutePost);
+        btn.addEventListener('click', handleMutePost);
+    });
+    document.querySelectorAll('.archive-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleArchivePost);
+        btn.addEventListener('click', handleArchivePost);
+    });
+    document.querySelectorAll('.delete-post-btn').forEach(btn => {
+        btn.removeEventListener('click', handleDeletePost);
+        btn.addEventListener('click', handleDeletePost);
+    });
+    document.querySelectorAll('.react-btn').forEach(btn => {
+        btn.removeEventListener('click', handleReact);
+        btn.addEventListener('click', handleReact);
+    });
+    document.querySelectorAll('.send-comment').forEach(btn => {
+        btn.removeEventListener('click', handleSendComment);
+        btn.addEventListener('click', handleSendComment);
+    });
+    document.addEventListener('click', closeAllMenus);
+}
+
+function toggleMenu(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-post-id');
+    const menu = document.getElementById(`menu-${postId}`);
+    if (activeMenuId && activeMenuId !== menu.id) {
+        document.getElementById(activeMenuId)?.classList.add('hidden');
+    }
+    menu.classList.toggle('hidden');
+    activeMenuId = menu.classList.contains('hidden') ? null : menu.id;
+}
+
+function closeAllMenus() {
+    document.querySelectorAll('.post-menu').forEach(menu => menu.classList.add('hidden'));
+    activeMenuId = null;
+}
+
+function handleSavePost(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-id');
+    let saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+    const btn = e.currentTarget;
+    if (saved.includes(postId)) {
+        saved = saved.filter(id => id !== postId);
+        S_Notify.alert("Đã bỏ lưu bài viết");
+        btn.innerHTML = '<i class="fa-regular fa-bookmark"></i> Lưu bài viết';
+    } else {
+        saved.push(postId);
+        S_Notify.alert("Đã lưu bài viết vào mục đã lưu");
+        btn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Bỏ lưu';
+    }
+    localStorage.setItem('saved_posts', JSON.stringify(saved));
+    closeAllMenus();
+}
+
+function handleMutePost(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-id');
+    let muted = JSON.parse(localStorage.getItem('muted_posts') || '[]');
+    const btn = e.currentTarget;
+    if (muted.includes(postId)) {
+        muted = muted.filter(id => id !== postId);
+        S_Notify.alert("Đã bật thông báo cho bài viết này");
+        btn.innerHTML = '<i class="fa-regular fa-bell-slash"></i> Tắt thông báo về bài viết này';
+    } else {
+        muted.push(postId);
+        S_Notify.alert("Đã tắt thông báo về bài viết này");
+        btn.innerHTML = '<i class="fa-solid fa-bell-slash"></i> Bật thông báo';
+    }
+    localStorage.setItem('muted_posts', JSON.stringify(muted));
+    closeAllMenus();
+}
+
+function handleArchivePost(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-id');
+    S_Notify.confirm("Chuyển bài viết vào kho lưu trữ?", async () => {
+        await rdb.ref(`s_talk/community/${postId}`).update({ archived: true });
+        S_Notify.alert("Đã chuyển vào kho lưu trữ");
+        closeAllMenus();
+    });
+}
+
+function handleDeletePost(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-id');
+    S_Notify.confirm("Chuyển vào thùng rác? Bài viết sẽ bị xóa vĩnh viễn.", async () => {
+        await rdb.ref(`s_talk/community/${postId}`).remove();
+        S_Notify.alert("Đã chuyển vào thùng rác");
+        closeAllMenus();
+    });
+}
+
+let editingPostId = null;
+
+function handleEditPost(e) {
+    e.stopPropagation();
+    const postId = e.currentTarget.getAttribute('data-id');
+    const oldTitle = e.currentTarget.getAttribute('data-title');
+    const oldDesc = e.currentTarget.getAttribute('data-desc');
+
+    // Tạo modal tạm thời
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm';
+    modalDiv.innerHTML = `
+        <div class="glass p-6 rounded-2xl max-w-md w-full mx-4">
+            <h3 class="text-lg font-bold mb-4">Chỉnh sửa bài viết</h3>
+            <input type="text" id="edit-title" value="${escapeHtml(oldTitle)}" class="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white mb-3" placeholder="Tiêu đề">
+            <textarea id="edit-desc" rows="3" class="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white" placeholder="Mô tả">${escapeHtml(oldDesc)}</textarea>
+            <div class="flex gap-3 mt-4">
+                <button id="edit-cancel" class="flex-1 py-2 bg-white/10 rounded-xl">Hủy</button>
+                <button id="edit-save" class="flex-1 py-2 bg-indigo-600 rounded-xl">Lưu</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalDiv);
+    
+    const titleInput = modalDiv.querySelector('#edit-title');
+    const descInput = modalDiv.querySelector('#edit-desc');
+    const saveBtn = modalDiv.querySelector('#edit-save');
+    const cancelBtn = modalDiv.querySelector('#edit-cancel');
+
+    const closeModal = () => modalDiv.remove();
+
+    saveBtn.onclick = async () => {
+        const newTitle = titleInput.value.trim();
+        const newDesc = descInput.value.trim();
+        if (!newTitle) {
+            S_Notify.alert("Tiêu đề không được để trống", "error");
+            return;
+        }
+        await rdb.ref(`s_talk/community/${postId}`).update({ title: newTitle, desc: newDesc });
+        S_Notify.alert("Đã cập nhật bài viết");
+        closeModal();
+        closeAllMenus();
     };
+    cancelBtn.onclick = closeModal;
+    modalDiv.addEventListener('click', (e) => { if (e.target === modalDiv) closeModal(); });
+}
+
+// Xử lý lưu từ modal
+document.getElementById('edit-save-btn')?.addEventListener('click', async () => {
+    const newTitle = document.getElementById('edit-title').value.trim();
+    const newDesc = document.getElementById('edit-desc').value.trim();
+    if (!newTitle) {
+        S_Notify.alert("Tiêu đề không được để trống", "error");
+        return;
+    }
+    if (editingPostId) {
+        await rdb.ref(`s_talk/community/${editingPostId}`).update({
+            title: newTitle,
+            desc: newDesc
+        });
+        S_Notify.alert("Đã cập nhật bài viết");
+    }
+    document.getElementById('edit-post-modal').classList.add('hidden');
+    editingPostId = null;
+});
+
+document.getElementById('edit-cancel-btn')?.addEventListener('click', () => {
+    document.getElementById('edit-post-modal').classList.add('hidden');
+    editingPostId = null;
+});
+
+function handleReact(e) {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const postId = btn.getAttribute('data-id');
+    const newType = btn.getAttribute('data-type'); // 'like', 'heart', 'haha'
+    const userId = localStorage.getItem('svoice_session') || "Guest";
+    const reactRef = rdb.ref(`s_talk/community/${postId}/userReacts/${userId}`);
+    
+    reactRef.transaction(currentReact => {
+        // Nếu chưa có react nào
+        if (!currentReact) {
+            // Thêm react mới
+            rdb.ref(`s_talk/community/${postId}/reactions/${newType}`).transaction(count => (count || 0) + 1);
+            return newType;
+        }
+        // Nếu đã react cùng loại => bỏ react (unlike)
+        else if (currentReact === newType) {
+            rdb.ref(`s_talk/community/${postId}/reactions/${newType}`).transaction(count => Math.max((count || 0) - 1, 0));
+            return null; // xóa react
+        }
+        // Nếu đã react khác loại => chuyển đổi
+        else {
+            const oldType = currentReact;
+            // Giảm oldType
+            rdb.ref(`s_talk/community/${postId}/reactions/${oldType}`).transaction(count => Math.max((count || 0) - 1, 0));
+            // Tăng newType
+            rdb.ref(`s_talk/community/${postId}/reactions/${newType}`).transaction(count => (count || 0) + 1);
+            return newType;
+        }
+    });
+    
+    // Cập nhật UI tạm thời (toàn bộ UI sẽ refresh qua listener realtime)
+    S_Notify.alert(`👍 Đã thả ${newType === 'like' ? 'Thích' : newType === 'heart' ? 'Yêu thích' : 'Haha'}!`);
+}
+
+function handleSendComment(e) {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const postId = btn.getAttribute('data-id');
+    const input = document.getElementById(`cmt-${postId}`);
+    const text = input.value.trim();
+    if (!text) return;
+    rdb.ref(`s_talk/community/${postId}/comments`).transaction(comments => {
+        comments = comments || [];
+        comments.push(text);
+        return comments;
+    });
+    input.value = '';
+    S_Notify.alert("Đã gửi góp ý!");
+}
+
+function escapeHtml(str) {
+    if(!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if(m === '&') return '&amp;';
+        if(m === '<') return '&lt;';
+        if(m === '>') return '&gt;';
+        return m;
+    });
+}
+
     window.openRatingModal = (id) => { S_Notify.confirm("Bạn muốn gửi lời khen/đánh giá cho bài nói này?", () => S_Notify.alert("Cảm ơn bạn đã đóng góp!")); };
 
     // Tab Controller
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.onclick = () => {
+            const targetTab = btn.dataset.tab;
+            
+            // 1. Ẩn tất cả nội dung tab
             document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-            document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            if(btn.dataset.tab === 'community') loadCommunityPosts();
-            if(btn.dataset.tab === 'shadowing') loadShadowingList();
+            // 2. Hiện tab mục tiêu
+            document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+            
+            // 3. Cập nhật trạng thái Active cho TẤT CẢ các nút có cùng targetTab
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if(b.dataset.tab === targetTab) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+
+            // 4. Load dữ liệu tương ứng
+            if(targetTab === 'community') {
+                if(!communityListenerAttached) loadCommunityPosts();
+                resetNotifications();  // reset badge khi vào tab
+            } else {
+                if(communityListenerAttached) {
+                    rdb.ref('s_talk/community').off('value');
+                    communityListenerAttached = false;
+                }
+            }
+            if(targetTab === 'shadowing') loadShadowingList();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
     });
 
@@ -1608,24 +2275,108 @@ function leaveMatch() {
 
 function handleLogout() {
     S_Notify.confirm("Bạn có chắc chắn muốn đăng xuất không?", () => {
-        // Hiện lại màn hình đăng nhập
-        const authView = document.getElementById('view-auth');
-        authView.classList.remove('hidden');
-        authView.style.opacity = "1";
-        authView.style.transform = "scale(1)";
-        
-        // Ẩn thông tin người dùng trên Navbar
-        const navArea = document.getElementById('user-nav-area');
-        navArea.classList.remove('flex');
-        navArea.classList.add('hidden');
-        
-        // Xóa trắng input (tùy chọn bảo mật)
-        document.getElementById('auth-pass').value = "";
-        
-        S_Notify.alert("Đã đăng xuất hệ thống");
+        localStorage.removeItem('svoice_session');
+        currentSanitizedKey = null;
+        location.reload();
     });
 }
 
+document.getElementById('view-auth').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleAuthSubmit();
+    }
+});
+
+window.deleteSingleShadowing = (id) => {
+    S_Notify.confirm(
+        "❗ XÁC NHẬN XÓA: Bạn muốn loại bỏ bài tập này khỏi thư viện vĩnh viễn?", 
+        async () => {
+            await rdb.ref(`users/${currentSanitizedKey}/shadowing/${id}`).remove();
+            S_Notify.alert("Đã xóa bài tập!");
+            loadShadowingList();
+            
+            if(currentShadowingId === id) {
+                document.getElementById('current-shadow-title').innerText = "Chọn bài tập để bắt đầu";
+                document.getElementById('shadow-text-display').innerText = "Nội dung bài học sẽ hiển thị tại đây...";
+                document.getElementById('shadow-audio-player').classList.add('hidden');
+                currentShadowingId = null;
+            }
+        }
+    );
+};
+
+window.deleteAllShadowing = () => {
+    S_Notify.confirm(
+        "🚨 CẢNH BÁO NGUY HIỂM: Bạn sắp XÓA SẠCH toàn bộ thư viện! Hành động này không thể hoàn tác. Tiếp tục?", 
+        async () => {
+            await rdb.ref(`users/${currentSanitizedKey}/shadowing`).remove();
+            S_Notify.alert("Hủy diệt thành công! Thư viện trống.");
+            loadShadowingList();
+            
+            document.getElementById('current-shadow-title').innerText = "Chọn bài tập để bắt đầu";
+            document.getElementById('shadow-text-display').innerText = "Nội dung bài học sẽ hiển thị tại đây...";
+            document.getElementById('shadow-audio-player').classList.add('hidden');
+            currentShadowingId = null;
+        }
+    );
+};
+
+let inactivityTimer;
+const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    if (currentSanitizedKey) {
+        inactivityTimer = setTimeout(forceLogout, TWELVE_HOURS);
+    }
+}
+
+function forceLogout() {
+    localStorage.removeItem('svoice_session');
+    S_Notify.alert("Phiên làm việc hết hạn. Hệ thống tự động đăng xuất.", "error");
+    setTimeout(() => location.reload(), 2000);
+}
+
+['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(name => {
+    document.addEventListener(name, resetInactivityTimer, true);
+});
+
+resetInactivityTimer();
+
+window.addEventListener('load', () => {
+    const savedUser = localStorage.getItem('svoice_session');
+    if (savedUser) {
+        enterApp(savedUser, true);
+    }
+});
 </script>
+
+<!-- Modal chỉnh sửa bài viết -->
+<div id="edit-post-modal" class="fixed inset-0 z-[30002] hidden items-center justify-center p-6 bg-[#020617]/90 backdrop-blur-xl">
+    <div class="glass p-8 rounded-[32px] max-w-lg w-full border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <i class="fa-solid fa-pen-nib"></i>
+            </div>
+            <h3 class="text-xl font-black uppercase italic tracking-tighter text-white">Chỉnh sửa bài viết</h3>
+        </div>
+        <div class="space-y-5">
+            <div>
+                <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Tiêu đề</label>
+                <input type="text" id="edit-title" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none transition-all" placeholder="Tiêu đề bài viết">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Nội dung mô tả</label>
+                <textarea id="edit-desc" rows="4" class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none transition-all" placeholder="Mô tả..."></textarea>
+            </div>
+        </div>
+        <div class="flex gap-4 mt-8">
+            <button id="edit-cancel-btn" class="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5">Hủy bỏ</button>
+            <button id="edit-save-btn" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
