@@ -376,19 +376,28 @@ video {
     object-fit: contain !important;
 }
 
-/* Mobile: dọc 9:16 – dùng media query */
 @media (max-width: 768px) {
-    #video-wrapper.mobile-call {
-        aspect-ratio: 9 / 16 !important;
+    /* Đẩy toàn bộ nội dung lên sát Navbar hơn */
+    main { 
+        padding-top: 5.5rem !important; /* Giảm từ pt-28 xuống */
     }
-    #video-wrapper.mobile-call #remote-video {
-        object-fit: cover !important;
-    }
-}
 
-/* Fallback nếu không có class */
-#video-wrapper:not(.pc-call):not(.mobile-call) {
-    aspect-ratio: 16 / 9;
+    /* Thu ngắn chiều cao khung video */
+    #video-wrapper.mobile-call {
+        aspect-ratio: 1 / 1.2 !important; /* Tỉ lệ này sẽ giúp khung gọn hơn, không bị quá dài */
+        max-height: 55vh; /* Giới hạn chiều cao tối đa */
+    }
+
+    /* Chỉnh lại vị trí badge Trạng thái cho gọn */
+    #video-wrapper .absolute.top-6.left-6 {
+        top: 10px !important;
+        left: 10px !important;
+    }
+    
+    /* Giảm padding của khối bọc ngoài video trên mobile */
+    #peer-call-container .glass {
+        padding: 0.75rem !important;
+    }
 }
 
 /* Hiệu ứng Chấm tín hiệu Neural */
