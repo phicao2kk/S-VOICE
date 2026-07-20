@@ -1299,27 +1299,31 @@ function enterApp(userId, displayName, isAutoLogin = false) {
 }
 
     function loadShadowingItem(id, item) {
-        currentShadowingId = id;
-        document.getElementById('current-shadow-title').innerText = item.title;
-        
-        // Tách văn bản thành mảng các từ
-        const words = item.text.split(/\s+/);
-        const container = document.getElementById('shadow-text-display');
-        
-        // Mỗi từ sẽ có class 'mx-0.5' để tạo khoảng cách nhỏ
-        container.innerHTML = words.map((word, index) => 
-            `<span id="word-${index}" class="word-pending inline-block mx-0.5">${word}</span>`
-        ).join(''); 
+    currentShadowingId = id;
+    document.getElementById('current-shadow-title').innerText = item.title;
+    
+    // Bảo toàn định dạng văn bản (giữ nguyên xuống dòng)
+    // Thay vì tách từng từ, hiển thị nguyên văn với các dòng mới
+    const container = document.getElementById('shadow-text-display');
+    
+    // Chuyển đổi \n thành <br> để hiển thị xuống dòng, nhưng vẫn giữ màu sắc cho từng từ
+    // Cách 1: Hiển thị văn bản đơn giản với xuống dòng (dễ đọc hơn)
+    container.innerHTML = item.text.replace(/\n/g, '<br>');
+    
+    // Cách 2 (không dùng): Nếu muốn vẫn đánh dấu từng từ, nhưng ít khi dùng vì văn bản dài
+    // container.innerHTML = item.text.split(/\s+/).map((word, index) => 
+    //     `<span id="word-${index}" class="word-pending inline-block mx-0.5">${word}</span>`
+    // ).join('');
 
-        const audioPlayerDiv = document.getElementById('shadow-audio-player');
-        const audioEl = document.getElementById('sample-audio');
-        if(item.audioUrl) {
-            audioEl.src = item.audioUrl;
-            audioPlayerDiv.classList.remove('hidden');
-        } else { audioPlayerDiv.classList.add('hidden'); }
-        currentShadowAudioUrl = item.audioUrl;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    const audioPlayerDiv = document.getElementById('shadow-audio-player');
+    const audioEl = document.getElementById('sample-audio');
+    if(item.audioUrl) {
+        audioEl.src = item.audioUrl;
+        audioPlayerDiv.classList.remove('hidden');
+    } else { audioPlayerDiv.classList.add('hidden'); }
+    currentShadowAudioUrl = item.audioUrl;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
     async function createShadowing() {
         const title = document.getElementById('shadow-title').value.trim();
