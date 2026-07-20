@@ -1021,23 +1021,6 @@ body:not(.recording-active) .wave-bar {
     /* ================= BẢO MẬT & CHỐNG ZOOM ================= */
 
 // 1. Chặn phím tắt F12, Ctrl+Shift+I, Ctrl+U... và chuyển hướng about:blank
-document.addEventListener('keydown', function(e) {
-    // Chặn F12
-    if (e.key === "F12") {
-        window.location.href = "about:blank";
-        e.preventDefault();
-    }
-    // Chặn Ctrl+Shift+I, J, C (Inspect)
-    if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) {
-        window.location.href = "about:blank";
-        e.preventDefault();
-    }
-    // Chặn Ctrl+U (Xem source)
-    if (e.ctrlKey && e.key === "u") {
-        window.location.href = "about:blank";
-        e.preventDefault();
-    }
-});
 
 // 2. Chặn chuột phải (Context Menu)
 document.addEventListener('contextmenu', e => e.preventDefault());
